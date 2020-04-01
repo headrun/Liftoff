@@ -16,8 +16,23 @@ def aeroplanselnium(request_data):
     arrival_date = request_data.get('arrival_date', {}).get('when', '')
     departure_airport = request_data.get('departure', '')
     arrival_airport = request_data.get('arrival', '')
-    passengers = request_data.get('passengers', '')
-    display = Display(visible=0, size=(1400,1000))
+
+    passengers = request_data.get('passengers', 0)
+    cabins = request_data.get('cabins', [])
+    max_stops = request_data.get('max_stops', '')
+    cabin_classes = []
+    for cabin in cabins:
+        if cabin.lower() == "economy":
+            cabin_classes.append("ECONOMY")
+        elif cabin.lower() == "premium_economy":
+            cabin_classes.append("PREMIUM ECONOMY")
+        elif cabin.lower() == "business":
+            cabin_classes.append("BUSINESS")
+        elif cabin.lower() == "first_class":
+            cabin_classes.append("FIRST")
+    cabin_classes = list(set(cabin_classes))
+
+    display = Display(visible=1, size=(1400,1000))
     display.start()
     profile = webdriver.FirefoxProfile()
     profile.set_preference("browser.cache.disk.enable", False)
@@ -147,85 +162,91 @@ def aeroplanselnium(request_data):
                     ],
                 "payments": [
                     {
-                        "currency": "CAD",
+                        "currency": "USD",
                         "taxes": "0.0",
-                        "fees": "0"
+                        "fees": None
                         }
                     ],
                 "site_key": "AC"
                 })
+            if stops <= max_stops:
+                inner_nodes = node.xpath('.//div[@class="middleColumn"]')
+                if not inner_nodes: continue
+                for inner_node in inner_nodes:
+                    flight_no = ''.join(inner_node.xpath('./div[@class="line flighNo"]/@flighno').extract()).strip()
+                    dep_airport = ''.join(inner_node.xpath('.//div[contains(text(), "Departs")]/../div[@class="airport"]/text()').extract()).strip()
+                    arr_airport = ''.join(inner_node.xpath('.//div[contains(text(), "Arrives")]/../div[@class="airport"]/text()').extract()).strip()
+                    dep_date = ''.join(inner_node.xpath('.//div[contains(text(), "Departs")]/../div[@class="date"]/text()').extract()).strip()
+                    dep_time = ''.join(inner_node.xpath('.//div[contains(text(), "Departs")]/../div[@class="time"]/text()').extract()).strip()
+                    arr_date = ''.join(inner_node.xpath('.//div[contains(text(), "Arrives")]/../div[@class="date"]/text()').extract()).strip()
+                    arr_time = ''.join(inner_node.xpath('.//div[contains(text(), "Arrives")]/../div[@class="time"]/text()').extract()).strip()
+                    flight_duration = ''.join(inner_node.xpath('./div[@class="line last"]/div[@class="duration"]/b/text()').extract()).strip()
+                    cabin_class = ''.join(inner_node.xpath('.//div[@class="cabin"]/div/text()').extract()).strip()
+                    book_class = ''.join(inner_node.xpath('.//div[@class="bookclass"]/text()').extract()).strip()
+                    book_class = book_class.replace("Class", "").strip()
+                    aircraft = ''.join(inner_node.xpath('.//div[@class="aircraft"]/text()').extract()).strip()
 
-            inner_nodes = node.xpath('.//div[@class="middleColumn"]')
-            if not inner_nodes: continue
-            for inner_node in inner_nodes:
-                flight_no = ''.join(inner_node.xpath('./div[@class="line flighNo"]/@flighno').extract()).strip()
-                dep_airport = ''.join(inner_node.xpath('.//div[contains(text(), "Departs")]/../div[@class="airport"]/text()').extract()).strip()
-                arr_airport = ''.join(inner_node.xpath('.//div[contains(text(), "Arrives")]/../div[@class="airport"]/text()').extract()).strip()
-                dep_date = ''.join(inner_node.xpath('.//div[contains(text(), "Departs")]/../div[@class="date"]/text()').extract()).strip()
-                dep_time = ''.join(inner_node.xpath('.//div[contains(text(), "Departs")]/../div[@class="time"]/text()').extract()).strip()
-                arr_date = ''.join(inner_node.xpath('.//div[contains(text(), "Arrives")]/../div[@class="date"]/text()').extract()).strip()
-                arr_time = ''.join(inner_node.xpath('.//div[contains(text(), "Arrives")]/../div[@class="time"]/text()').extract()).strip()
-                flight_duration = ''.join(inner_node.xpath('./div[@class="line last"]/div[@class="duration"]/b/text()').extract()).strip()
-                cabin_class = ''.join(inner_node.xpath('.//div[@class="cabin"]/div/text()').extract()).strip()
-                book_class = ''.join(inner_node.xpath('.//div[@class="bookclass"]/text()').extract()).strip()
-                aircraft = ''.join(inner_node.xpath('.//div[@class="aircraft"]/text()').extract()).strip()
+                    dep_datetime = datetime.strptime('%s %s %s' % (year, dep_date, dep_time), "%Y %a. %b %d %H:%M").strftime("%Y-%m-%dT%H:%M")
+                    arr_datetime = datetime.strptime('%s %s %s' % (year, arr_date, arr_time), "%Y %a. %b %d %H:%M").strftime("%Y-%m-%dT%H:%M")
 
-                dep_datetime = datetime.strptime('%s %s %s' % (year, dep_date, dep_time), "%Y %a. %b %d %H:%M").strftime("%Y-%m-%dT%H:%M")
-                arr_datetime = datetime.strptime('%s %s %s' % (year, arr_date, arr_time), "%Y %a. %b %d %H:%M").strftime("%Y-%m-%dT%H:%M")
+                    flight_dur, layover_dur = '00:00', '00:00'
+                    if flight_duration:
+                        flight_duration = flight_duration.split(':')[-1].replace('min', '').strip()
+                        if 'h' not in flight_duration:
+                            flight_dur = timedelta(minutes=int(flight_duration))
+                        else:
+                            hours, minutes = flight_duration.split('h')
+                            flight_dur = timedelta(hours=int(hours.strip()), minutes=int(minutes.replace('min', '').strip()))
 
-                flight_dur, layover_dur = '00:00', '00:00'
-                if flight_duration:
-                    flight_duration = flight_duration.split(':')[-1].replace('min', '').strip()
-                    if 'h' not in flight_duration:
-                        flight_dur = timedelta(minutes=int(flight_duration))
-                    else:
-                        hours, minutes = flight_duration.split('h')
-                        flight_dur = timedelta(hours=int(hours.strip()), minutes=int(minutes.replace('min', '').strip()))
+                    try:
+                        flight_duration = datetime.strptime(str(flight_dur), "%H:%M:%S").strftime('%H:%M')
+                    except:
+                        flight_duration = flight_dur
 
-                try:
-                    flight_duration = datetime.strptime(str(flight_dur), "%H:%M:%S").strftime('%H:%M')
-                except:
-                    flight_duration = flight_dur
+                    conn_dict = {
+                            "departure": {
+                                "when": dep_datetime,
+                                "airport": "".join(re.findall("\((.*?)\)", dep_airport)).strip()
+                                },
+                            "arrival": {
+                                "when": arr_datetime,
+                                "airport": "".join(re.findall("\((.*?)\)", arr_airport)).strip()
+                                },
+                            "airline": "".join(re.findall("[a-zA-Z]+", flight_no)).strip(),
+                            "flight": [flight_no],
+                            "cabin": cabin_class.title(),
+                            "distance": None,
+                            "aircraft": {
+                                "model": aircraft.split(' ')[-1] if aircraft else '',
+                                "manufacturer": aircraft.split(' ')[0] if aircraft else ''
+                                },
+                            "times": {
+                                "flight": str(flight_duration),
+                                "layover": str(layover_time),
+                                },
+                            "redemptions": [{
+                                "miles": miles,
+                                "program": "%s %s".strip() % (award_type, cabin_class.title())
+                                }],
+                            "payments": [{
+                                "currency": "CAD",
+                                "taxes": "",
+                                "fees": "0"
+                                }],
+                            "tickets": None,
+                            "fare_class": book_class
+                            }
 
-                conn_dict = {
-                        "departure": {
-                            "when": dep_datetime,
-                            "airport": "".join(re.findall("\((.*?)\)", dep_airport)).strip()
-                            },
-                        "arrival": {
-                            "when": arr_datetime,
-                            "airport": "".join(re.findall("\((.*?)\)", arr_airport)).strip()
-                            },
-                        "airline": "".join(re.findall("[a-zA-Z]+", flight_no)).strip(),
-                        "flight": [flight_no],
-                        "cabin": cabin_class.title(),
-                        "distance": None,
-                        "aircraft": {
-                            "model": aircraft.split(' ')[-1] if aircraft else '',
-                            "manufacturer": aircraft.split(' ')[0] if aircraft else ''
-                            },
-                        "times": {
-                            "flight": str(flight_duration),
-                            "layover": str(layover_time),
-                            },
-                        "redemptions": [{
-                            "miles": miles,
-                            "program": "%s %s".strip() % (award_type, cabin_class.title())
-                            }],
-                        "payments": [{
-                            "currency": "CAD",
-                            "taxes": "",
-                            "fees": "0"
-                            }],
-                        "tickets": None,
-                        "fare_class": "COACH"
-                        }
-
-                conn.append(conn_dict)
-
-            record.update({"connections": conn})
-            record["redemptions"][0].update({"program": "%s %s".strip() % (award_type, cabin_class.title())})
-            routes.append(record)
+                    conn.append(conn_dict)
+                cabin_available = False
+                for ele in conn:
+                    if ele["cabin"].upper() in cabin_classes:
+                        cabin_available = True
+                if cabin_available:
+                    record.update({"connections": conn})
+                    record["redemptions"][0].update({"program": "%s %s".strip() % (award_type, cabin_class.title())})
+                    record["award_type"] = "%s %s".strip() % (award_type, cabin_class.title())
+                    routes.append(record)
 
     except Exception as error:
         print (error)
