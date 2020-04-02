@@ -15,12 +15,9 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-from .views import login, americanAirlines, airCanadas, runscraper
+from .views import runscraper
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/login', login),
-    path('api/americanAirline', americanAirlines),
-    path('api/airCanada', airCanadas),
     path('api/miles', runscraper)
 ]
