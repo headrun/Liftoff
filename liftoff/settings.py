@@ -40,13 +40,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken'
 ]
-REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework.authentication.TokenAuthentication',
-    ),
-    'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated', )
-}
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -77,16 +71,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'liftoff.wsgi.application'
 
-
-# Database
-# https://docs.djangoproject.com/en/2.2/ref/settings/#databases
-#
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-#     }
-# }
 DATABASES = {
     'default': {
         #'ENGINE': 'django.db.backends.mysql',
@@ -94,7 +78,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME':'liftoff',
         'USER': 'root',
-        'PASSWORD': 'root',
+        'PASSWORD': '942beedaf41e5f1ea97384974647f061@$XIT',
     }
 }
 
