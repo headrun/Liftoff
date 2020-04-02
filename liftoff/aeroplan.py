@@ -32,7 +32,7 @@ def aeroplanselnium(request_data):
             cabin_classes.append("FIRST")
     cabin_classes = list(set(cabin_classes))
 
-    display = Display(visible=1, size=(1400,1000))
+    display = Display(visible=0, size=(1400,1000))
     display.start()
     profile = webdriver.FirefoxProfile()
     profile.set_preference("browser.cache.disk.enable", False)
