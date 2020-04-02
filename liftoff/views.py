@@ -98,7 +98,7 @@ def runscraper(request):
         values = request.data
         start = datetime.datetime.now()
         valid = validateRequest(values)
-        airline = values.get('airlines', '')
+        airline = ''.join(values.get('airlines', ''))
         if not airline or not valid:
             status = "Error"
             description = "Please provides all mandatory fields"
@@ -131,25 +131,24 @@ def runscraper(request):
         final["metrics"] = {"url": url, "status": status, "description": description, "response_time": res_time.microseconds, "airline":airline, "results":length}
         return Response(final,status=res_status)
 
+
 def validateRequest(data):
-    airline = data.get('airline', '')
-    arrival =  data.get('arrival', '')
+    airline = ''.join(data.get('airlines', []))
+    arrival =  ''.join(data.get('arrivals', []))
+    departure = ''.join(data.get('departures', []))
     cabins = data.get('cabins', '')
-    departure_date = data.get('departure_date', {}).get('when', '')
-    arrival_date = data.get('arrival_date', {}).get('when', '')
-    departure = data.get('departure_date', '')
-    arrival = data.get('arrival_date', '')
-    departures = data.get('departure', '')
+    departure_dict = data.get('departure_date', {})
+    arrival_dict = data.get('arrival_date', {})
     max_stops = data.get('max_stops', '')
     passengers = data.get('passengers', '')
+
     valid = True
     if not airline: valid = False
-    if not arrival: valid = False
     if not cabins: valid = False
-    if not departure_date: valid = False
-    if not arrival_date: valid = False
-    if not departures: valid = False
-    if not departures: valid = False
+    if departure_dict: valid = False if not departure_dict.get('when', '') else True
+    if arrival_dict: valid = False if not arrival_dict.get('when', '') or not arrival else True
+    if not departure: valid = False
     if max_stops == '': valid = False
     if not passengers: valid = False
     return valid
+
