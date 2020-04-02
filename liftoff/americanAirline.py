@@ -20,7 +20,18 @@ def americanAirlines(request_data):
         'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8,te;q=0.7,ta;q=0.6',
     }
     departureDate = data.get('departure_date', '').get('when', '')
-    arrivalDate = data.get('arrival_date', '').get('when', '')
+    try:
+        arrivalDate = data.get('arrival_date', '').get('when', '')
+    except:
+        arrivalDate = ''
+
+    if arrivalDate:
+        departureDate = data.get('departure_date', '').get('when', '')
+        arrivalDate = data.get('arrival_date', '').get('when', '')
+    else:
+        departureDate = data.get('departure_date', '').get('when', '')
+        arrivalDate = ''
+
     request_cabins = data.get('cabins', [])
     cabin_classes = []
     cabinMapping = {'COACH':'economy','PREMIUM_ECONOMY':'premium_economy','BUSINESS':'business','FIRST':'first_class'}
@@ -34,20 +45,20 @@ def americanAirlines(request_data):
         elif cabin.lower() == "economy":
             cabin_classes.append("COACH")
     tripStatus = 'OneWay'
-    if departureDate != arrivalDate:
+    if arrivalDate:
         tripStatus = 'RoundTrip'
     maxStop = data.get('max_stops')
     data = {
         "allCarriers": True,
-        "departureDate": data.get('departure_date', '').get('when', ''),
-        "destination": data.get('arrival', ''),
+        "departureDate": departureDate,
+        "destination": ''.join(data.get('arrivals', '')),
         "errorCode": "",
         "locale": "en_US",
         "loyaltyInfo": {"loyaltyId": "", "eliteLevel": "", "loyaltyBalance": ""},
-        "origin": data.get('departure', ''),
+        "origin": ''.join(data.get('departures', '')),
         "passengers": [{"type": "adult", "count": data.get('passengers', 0)}],
         "selectedProducts": [],
-        "returnDate": data.get('arrival_date', '').get('when', ''),
+        "returnDate": arrivalDate,
         "searchType": "Award",
         "sessionId": "",
         "sliceIndex": 0,
@@ -80,15 +91,15 @@ def americanAirlines(request_data):
                 airLine = segment_element.get('flight', {}).get('carrierCode', '')
                 flightNo = segment_element.get('flight', {}).get('flightNumber', '')
                 arrivalDateTime = segment_element.get('arrivalDateTime', '')
-                arrivalAirport = segment_element.get('destination', {}).get('code', '')
+                arrivalAirport = segment_element.get('origin', {}).get('code', '')
                 departureDateTime = segment_element.get('departureDateTime', '')
-                departureAirport = segment_element.get('origin', {}).get('code', '')
-                airlineDetails["airline"] = "AA"
-                airlineDetails["departure"] = {"when": departureDateTime, "airport": departureAirport}
-                airlineDetails["arrival"] = {"when": arrivalDateTime, "airport": arrivalAirport}
+                departureAirport = segment_element.get('destination', {}).get('code', '')
+                airlineDetails["airlines"] = "AA"
+                airlineDetails["departures"] = {"when": departureDateTime, "airport": departureAirport}
+                airlineDetails["arrivals"] = {"when": arrivalDateTime, "airport": arrivalAirport}
                 aircraftModel = segment_element.get('legs', [])[0].get('aircraft', {}).get('shortName')
                 airlineDetails["distance"] = None
-                flightNumber = airLine + flightNo
+                flightNumber = airLine + flightNo                
                 airlineDetails["flight"] = [flightNumber]
                 try:
                     aircraftManufacturer = aircraftModel.split(' ')[0]
@@ -107,16 +118,19 @@ def americanAirlines(request_data):
                         fare_classes[product.get('cabinType', '')] = product.get('bookingCode', '')
                         # bookingCodes.append(product.get('bookingCode', ''))
                     flightTotalTime = leg.get('durationInMinutes', 0)
-                    fTime = '00:00'
+                    fTime = None
                     if flightTotalTime != 0:
                         fTime = str(int(flightTotalTime / 60)) + ':' + str(flightTotalTime % 60)
                         fTime = datetime.strptime(fTime, "%H:%M").strftime('%H:%M')
                     total = leg.get('connectionTimeInMinutes', 0)
-                    lTime = '00:00'
+                    lTime = None
                     if total != 0:
                         total_time = total_time + total
                         lTime = str(int(total / 60)) + ':' + str(total % 60)
-                        lTime = datetime.strptime(lTime, "%H:%M").strftime('%H:%M')
+                        try:
+                            lTime = datetime.strptime(lTime, "%H:%M").strftime('%H:%M')
+                        except:
+                            lTime = lTime
                     airlineDetails["times"] = {"flight": fTime, "layover": lTime}
                 # airlineDetails["fare_class"] = list(set(bookingCodes))
                 airlineDetails["redemptions"] = None
@@ -126,9 +140,14 @@ def americanAirlines(request_data):
 
             connectionTimeInMinutes = str(int(total_time / 60)) + ':' + str(total_time % 60)
             layoverTime = datetime.strptime(connectionTimeInMinutes, "%H:%M").strftime('%H:%M')
+            if layoverTime == '00:00':
+                layoverTime = None
             durationInMinutes = ele.get('durationInMinutes', 0)
             duration = str(int(durationInMinutes / 60)) + ':' + str(durationInMinutes % 60)
-            flightTime = datetime.strptime(duration, "%H:%M").strftime('%H:%M')
+            try:
+                flightTime = datetime.strptime(duration, "%H:%M").strftime('%H:%M')
+            except:
+                flightTime = duration
             sample_dict["times"] = {'flight': flightTime, 'layover': layoverTime}
             sample_dict["site_key"] = 'A'
             pricingInformation, webSpecial = [], []
@@ -140,13 +159,14 @@ def americanAirlines(request_data):
                     if cabin in cabin_classes:
                         productBenifits = price.get('productBenefits', '')
                         miles = price.get('perPassengerAwardPoints', 0)
-                        final_sub_dict["redemptions"] = {"miles": miles, "program": productBenifits}
+                        final_sub_dict["redemptions"] = [{"miles": miles, "program": productBenifits}]
+                        final_sub_dict["award_type"] = productBenifits 
                         for connection in final_sub_dict["connections"]:
                             connection["fare_class"] = fare_classes[cabin]
                             connection["cabin"] = cabinMapping[cabin]
                         currency = price.get('perPassengerDisplayTotal', {}).get('currency', '')
                         taxes = price.get('perPassengerDisplayTotal').get('amount', '')
-                        final_sub_dict["payments"] = [{"currency": currency, "taxes": taxes, "fees": taxes}]
+                        final_sub_dict["payments"] = [{"currency": currency, "taxes": taxes, "fees":None}]
                         final_dict.append(final_sub_dict)
                         webSpecial.append(price.get('productType'))
     return final_dict
