@@ -3,7 +3,6 @@ import json
 import copy
 from datetime import datetime
 
-
 def americanAirlines(request_data):
     data = request_data
     headers = {
@@ -19,19 +18,8 @@ def americanAirlines(request_data):
         'referer': 'https://www.americanairlines.co.uk/booking/choose-flights',
         'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8,te;q=0.7,ta;q=0.6',
     }
-    departureDate = data.get('departure_date', '').get('when', '')
-    try:
-        arrivalDate = data.get('arrival_date', '').get('when', '')
-    except:
-        arrivalDate = ''
-
-    if arrivalDate:
-        departureDate = data.get('departure_date', '').get('when', '')
-        arrivalDate = data.get('arrival_date', '').get('when', '')
-    else:
-        departureDate = data.get('departure_date', '').get('when', '')
-        arrivalDate = ''
-
+    departureDate = data.get('departure_date', {}).get('when', '')
+    arrivalDate = data.get('arrival_date', {}).get('when', '')
     request_cabins = data.get('cabins', [])
     cabin_classes = []
     cabinMapping = {'COACH':'economy','PREMIUM_ECONOMY':'premium_economy','BUSINESS':'business','FIRST':'first_class'}
@@ -44,18 +32,16 @@ def americanAirlines(request_data):
             cabin_classes.append("PREMIUM_ECONOMY")
         elif cabin.lower() == "economy":
             cabin_classes.append("COACH")
-    tripStatus = 'OneWay'
-    if arrivalDate:
-        tripStatus = 'RoundTrip'
-    maxStop = data.get('max_stops')
+    tripStatus = 'RoundTrip' if arrivalDate else 'OneWay'
+    maxStop = data.get('max_stops', 0)
     data = {
         "allCarriers": True,
         "departureDate": departureDate,
-        "destination": ''.join(data.get('arrivals', '')),
+        "destination": ''.join(data.get('arrivals', [])),
         "errorCode": "",
         "locale": "en_US",
         "loyaltyInfo": {"loyaltyId": "", "eliteLevel": "", "loyaltyBalance": ""},
-        "origin": ''.join(data.get('departures', '')),
+        "origin": ''.join(data.get('departures', [])),
         "passengers": [{"type": "adult", "count": data.get('passengers', 0)}],
         "selectedProducts": [],
         "returnDate": arrivalDate,
@@ -68,13 +54,15 @@ def americanAirlines(request_data):
         "cabinType": "",
         "maxStopCount": None
     }
+    final_dict = []
     data = json.dumps(data)
     response = requests.post('https://www.americanairlines.in/booking/api/search/v2/itinerary', headers=headers,data=data)
     json_data = json.loads(response.text)
-    errorMsg = json_data.get('error', '')
+    errorMsg = json_data.get('message', '')
     if errorMsg:
-        print("Something Went Wrong")
-        return
+        print("Invalid Request")
+        return final_dict, errorMsg
+
     slice_list = json_data.get('slices', [])
     final_dict = []
     for ele in slice_list:
@@ -97,7 +85,7 @@ def americanAirlines(request_data):
                 airlineDetails["airlines"] = "AA"
                 airlineDetails["departures"] = {"when": departureDateTime, "airport": departureAirport}
                 airlineDetails["arrivals"] = {"when": arrivalDateTime, "airport": arrivalAirport}
-                aircraftModel = segment_element.get('legs', [])[0].get('aircraft', {}).get('shortName')
+                aircraftModel = segment_element.get('legs', [{}])[0].get('aircraft', {}).get('shortName')
                 airlineDetails["distance"] = None
                 flightNumber = airLine + flightNo                
                 airlineDetails["flight"] = [flightNumber]
@@ -169,4 +157,7 @@ def americanAirlines(request_data):
                         final_sub_dict["payments"] = [{"currency": currency, "taxes": taxes, "fees":None}]
                         final_dict.append(final_sub_dict)
                         webSpecial.append(price.get('productType'))
-    return final_dict
+
+    return final_dict, errorMsg
+
+
