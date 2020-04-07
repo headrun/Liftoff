@@ -137,7 +137,7 @@ def americanAirlines(request_data):
             except:
                 flightTime = duration
             sample_dict["times"] = {'flight': flightTime, 'layover': layoverTime}
-            sample_dict["site_key"] = 'A'
+            sample_dict["site_key"] = request_data['site_key']
             pricingInformation, webSpecial = [], []
             pricingDetails = ele.get('pricingDetail', [])
             for price in pricingDetails:
