@@ -3,11 +3,13 @@ from rest_framework.decorators import api_view
 from rest_framework.status import HTTP_400_BAD_REQUEST,\
 HTTP_404_NOT_FOUND, HTTP_200_OK, HTTP_500_INTERNAL_SERVER_ERROR
 from rest_framework.response import Response
-from americanAirline import americanAirlines
-from aeroplan import aeroplanselnium
+from .americanAirline import americanAirlines
+from .aeroplan import aeroplanselnium
+from .virginatlantic import vigranAtlantic
 
 SCRAPERS_DICT = {
-    "AA": [americanAirlines, "https://www.aa.com"], "AC": [aeroplanselnium, "https://www.aeroplan.com/"]
+    "AA": [americanAirlines, "https://www.aa.com"], "AC": [aeroplanselnium, "https://www.aeroplan.com/"],
+    "VA": [vigranAtlantic, "https://www.virginatlantic.com/"]
     }
 
 @api_view(['POST'])
