@@ -131,6 +131,13 @@ def vigranAtlantic(request_data):
     
     final_dict = []
     data = json.loads(response.text)
+    try:
+        error_msg = data.get('shoppingError',{}).get('error',{}).get('message','').get('message','')
+        if error_msg:
+            print(error_msg)
+            return final_dict,error_msg
+    except:
+        error_msg = ''
 
     itinerary = data.get('itinerary',[])
     for fare in itinerary:
@@ -219,4 +226,5 @@ def vigranAtlantic(request_data):
                         final_sub_dict["payments"] = [{"currency": currency, "taxes": taxes, "fees":None}]
                         final_sub_dict["award_type"] = program
                     final_dict.append(final_sub_dict)
-    return final_dict 
+    
+    return final_dict, error_msg
