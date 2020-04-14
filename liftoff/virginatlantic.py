@@ -131,13 +131,10 @@ def vigranAtlantic(request_data):
     
     final_dict = []
     data = json.loads(response.text)
-    try:
-        error_msg = data.get('shoppingError',{}).get('error',{}).get('message','').get('message','')
-        if error_msg:
-            print(error_msg)
-            return final_dict,error_msg
-    except:
-        error_msg = ''
+    error_msg = data.get('shoppingError',{}).get('error',{}).get('message',{}).get('message','')
+    if error_msg:
+        print(error_msg)
+        return final_dict,error_msg
 
     itinerary = data.get('itinerary',[])
     for fare in itinerary:
