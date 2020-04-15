@@ -71,16 +71,16 @@ def vigranAtlantic(request_data):
     
     request_cabins = data.get('cabins', [])
     cabin_classes = []
-    cabinMapping = {'Economy Classic':'economy','Premium':'premium_economy','Upper Class':'business','First Class':'first_class'}
+    cabinMapping = {'Economy':'economy','Premium':'premium_economy','Upper Class':'business','Upper Class':'first_class'}
     for cabin in request_cabins:
         if cabin.lower() == "first_class":
-            cabin_classes.append("First Class")
+            cabin_classes.append("Upper Class")
         elif cabin.lower() == "business":
             cabin_classes.append("Upper Class")
         elif cabin.lower() == "premium_economy":
             cabin_classes.append("Premium")
         elif cabin.lower() == "economy":
-            cabin_classes.append("Economy Classic")
+            cabin_classes.append("Economy")
     cabin_classes = list(set(cabin_classes))
     maxStop = data.get('max_stops')
     headers = {
@@ -127,10 +127,11 @@ def vigranAtlantic(request_data):
             }
     response = requests.post('https://www.virginatlantic.com/shop/ow/search', headers=headers, cookies=cookies, data=json.dumps(data))
     if response.status_code == 403:
-        response = requests.post('https://www.virginatlantic.com/shop/ow/search', headers=headers, cookies=cookies, data=json.dumps(data))
+        response = requests.post('https://www.virginatlantic.com/shop/ow/search', headers=headers, cookies=cookies, data=json.dumps(data)) 
     
     final_dict = []
     data = json.loads(response.text)
+    
     error_msg = data.get('shoppingError',{}).get('error',{}).get('message',{}).get('message','')
     if error_msg:
         print(error_msg)
@@ -164,7 +165,7 @@ def vigranAtlantic(request_data):
                         arrivalDateTime = leg.get('schedArrivalLocalTs','')
                         aircraftModel = leg.get('aircraft',{}).get('fleetName','')
                         flightNumber = leg.get('viewSeatUrl',{}).get('fltNumber','')
-                        airlineDetails["airlines"] = "VC"
+                        airlineDetails["airlines"] = "VS"
                         airlineDetails["departures"] = {"when": departureDateTime, "airport": departureAirport}
                         airlineDetails["arrivals"] = {"when": arrivalDateTime, "airport": arrivalAirport}
                         airlineDetails["distance"] = None
@@ -184,44 +185,56 @@ def vigranAtlantic(request_data):
                         airlineDetails["payments"] = None
                         airlineDetails["tickets"] = None
                         sample_dict["connections"].append(airlineDetails)
-                        sample_dict["times"] = {'flight': flighttimes, 'layover': ltime}
+                        sample_dict['times'] = {'flight': flighttimes, 'layover': ltime}
                     totalAirTime = str(segment.get('totalAirTime',{}).get('hour','')) + ':' + str(segment.get('totalAirTime',{}).get('minute',''))
                     layoverTimes = str(segment.get('layover',{}).get('duration',{}).get('hour','')) + ':'+ str(segment.get('layover',{}).get('duration',{}).get('minute',''))
                     if layoverTimes == ':':
                         layoverTimes = None
-                    airlineDetails['times'] = {'flight': totalAirTime, 'layover': layoverTimes}
-                    #sample_dict["site_key"] = 'VC'    
+                    airlineDetails["times"] = {'flight': totalAirTime, 'layover': layoverTimes}
+                    #sample_dict["site_key"] = 'VS'    
                     sample_dict["site_key"] = request_data['site_key']
                 
         if not Flag:
             continue
         fares = fare.get('fare','')            
         fare_classes = {}
+        
         for flg_det in fares:
             programs = flg_det.get('miscFlightInfos',{})
+            final_sub_dict = copy.deepcopy(sample_dict)
             for program in programs:
                 program = program.get('airlineFltInfo',{}).get('airline',{}).get('airlineName','')
-            final_sub_dict = copy.deepcopy(sample_dict)
             currency = flg_det.get('totalPrice',{}).get('currency',{}).get('code','')
             taxes = flg_det.get('totalPrice',{}).get('currency',{}).get('formattedAmount','')
             miles = flg_det.get('basePrice',{}).get('miles',{}).get('miles','')
                 
             details = flg_det.get('miscFlightInfos','')
             cabinname = flg_det.get('brandByFlightLeg','')
+            index = 0
             for name in cabinname:
                 cabinName = name.get('brandName','')
-                result_cabin = any(ele in cabinName for ele in cabin_classes) 
-                if result_cabin:
-                    for cabin in details:
-                        cabincode = cabin.get('displayBookingCode','')
-                        fare_classes[cabinName] = cabin.get('displayBookingCode','') 
-                        for connection in final_sub_dict["connections"]:
-                            connection["fare_class"] = fare_classes[cabinName]
-                            connection["cabin"] = cabinMapping[cabinName]
-    
-                        final_sub_dict["redemptions"] = [{"miles": miles, "program":program}]
-                        final_sub_dict["payments"] = [{"currency": currency, "taxes": taxes, "fees":None}]
-                        final_sub_dict["award_type"] = program
+                final_sub_dict["connections"][index]["cabin"] = cabinName
+                index = index +1
+            index = 0    
+            for cabin in details:
+                fare_class = cabin.get('displayBookingCode','')
+                final_sub_dict["connections"][index]["fare_class"] = fare_class
+                index = index +1
+            final_sub_dict["redemptions"] = [{"miles": miles, "program":program}]
+            final_sub_dict["payments"] = [{"currency": currency, "taxes": taxes, "fees":None}]
+            final_sub_dict["award_type"] = program
+            if len(cabinname)!=0:
+                cabin_available = False
+                for element in final_sub_dict["connections"]:
+                    nameOfCabin = element["cabin"]
+                    result_cabin = any(ele in nameOfCabin for ele in cabin_classes)
+                    if result_cabin:
+                        cabin_available = True
+                if cabin_available:
                     final_dict.append(final_sub_dict)
-    
+
     return final_dict, error_msg
+
+        
+            
+            
