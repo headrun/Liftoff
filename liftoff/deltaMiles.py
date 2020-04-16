@@ -7,19 +7,16 @@ import json
 from datetime import datetime
 from selenium import webdriver
 from pyvirtualdisplay import Display
+from settings import proxies
 
 
-
-def DeltaSkyMiles(request_data): 
+def DeltaSkyMiles(request_data):
     display = Display(visible=0, size=(1400,1000))
     display.start()
-    #driver = webdriver.Firefox()
-    display =  ''
-    options = webdriver.ChromeOptions()
-    driver = webdriver.Chrome(chrome_options=options)    
+    driver = webdriver.Firefox()
     driver.get('https://www.delta.com')
     _abck = ''.join([item.get('value') for item in driver.get_cookies() if item.get('name') == '_abck'])
-    #display.stop()
+    display.stop()
     driver.quit()
      
     cabin_classes = []
@@ -38,15 +35,12 @@ def DeltaSkyMiles(request_data):
             'accept-language': 'en-US,en;q=0.9,fil;q=0.8,te;q=0.7',
             }
 
-    cabinMapping = {
-            'First Class':'First Class',    
-            'Delta One': 'First Class',
-            'Upper class':'First Class',
-            'Premium':'Premium Economy',
-            'Comfort+': 'Premium Economy',
-            'Economy': 'Economy',
-            'Main Cabin': 'Economy',
-            }
+    cabinMapping = {'Economy':'Economy',
+                    'Main Cabin':'Economy',
+                    'Premium':'Premium Economy',
+                    'Comfort+':'Premium Economy',
+                    'First Class':'First Class', 
+                    'Delta One':'First Class'}
 
     departureDate = request_data.get('departure_date', {}).get('when', '')
     arrivalDate = request_data.get('arrival_date', {}).get('when', '')
@@ -61,7 +55,6 @@ def DeltaSkyMiles(request_data):
         if cabin.lower() == "first_class":
             cabin_classes.append("First Class")
             cabin_classes.append("Delta One")
-            cabin_classes.append("Upper class")
         elif cabin.lower() == "premium_economy":
             cabin_classes.append("Premium")
             cabin_classes.append("Comfort+")       
@@ -99,7 +92,7 @@ def DeltaSkyMiles(request_data):
             "sortableOptionId":"priceAward",
             "requestPageNum":"1"}
 
-    response = requests.post('https://www.delta.com/shop/ow/search', headers=headers, cookies=cookies, data=json.dumps(data))
+    response = requests.post('https://www.delta.com/shop/ow/search', headers=headers, cookies=cookies, data=json.dumps(data),proxies=proxies)
     data = json.loads(response.text)
     final_dict = []
     error_msg = data.get('shoppingError',{}).get('error',{}).get('message',{}).get('message','')
@@ -162,8 +155,8 @@ def DeltaSkyMiles(request_data):
                     if layoverTime == ':':
                         layoverTime = None
                     airlineDetails["times"] = {'flight': totalAirTime, 'layover': layoverTime}
-                    sample_dict["site_key"] = 'DL'    
-                    #sample_dict["site_key"] = request_data['site_key']
+                    #sample_dict["site_key"] = 'DL'    
+                    sample_dict["site_key"] = request_data['site_key']
 
         if not Flag:
             continue
@@ -188,7 +181,8 @@ def DeltaSkyMiles(request_data):
                 index = index +1
             index = 0
             for cabin in details:
-                fare_class = cabin.get('displayBookingCode','')
+                #fare_class = cabin.get('displayBookingCode','')
+                fare_class = cabin.get('bookingCode','')
                 final_sub_dict["connections"][index]["fare_class"] = fare_class
                 index = index +1
             final_sub_dict["redemptions"] = [{"miles": miles, "program":program}]
@@ -198,16 +192,15 @@ def DeltaSkyMiles(request_data):
                 cabin_available = False
                 for element in final_sub_dict["connections"]:
                     nameOfCabin = element["cabin"]
-                    #result_cabin = any(ele in nameOfCabin for ele in cabin_classes)
-                    result_cabin = ''.join([ele for ele in cabin_classes if(ele.lower() in nameOfCabin.lower())])
+                    result_cabin = any(ele in nameOfCabin for ele in cabin_classes)
+                    result_cabin_name = ''.join([ele for ele in cabin_classes if(ele.lower() in nameOfCabin.lower())])
                     if result_cabin:
                         cabin_available = True
+                        element["cabin"] = cabinMapping[result_cabin_name]
                 if cabin_available:
                     final_dict.append(final_sub_dict)
 
     return final_dict , error_msg
-
-           
 
 
         
