@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 """
 
 import os
+import random
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -101,7 +102,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/2.2/topics/i18n/
 
@@ -114,6 +114,19 @@ USE_I18N = True
 USE_L10N = True
 
 USE_TZ = True
+
+
+proxies_list = ['http://vinuthna@headrun.com:Hotthdrn591!@173.254.222.170:6060',
+                'http://vinuthna@headrun.com:Hotthdrn591!@96.44.147.42:6060',
+                'http://vinuthna@headrun.com:Hotthdrn591!@184.75.209.90:6060',
+                'http://vinuthna@headrun.com:Hotthdrn591!@184.75.210.138:6060',
+                'http://vinuthna@headrun.com:Hotthdrn591!@88.202.177.233:6060',
+                'http://vinuthna@headrun.com:Hotthdrn591!@173.254.222.154:6060']
+
+proxies = {
+            "http": random.choice(proxies_list)
+}
+
 
 
 # Static files (CSS, JavaScript, Images)
