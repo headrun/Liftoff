@@ -6,10 +6,11 @@ from rest_framework.response import Response
 from .americanAirline import americanAirlines
 from .aeroplan import aeroplanselnium
 from .virginatlantic import vigranAtlantic
+from .deltaMiles import DeltaSkyMiles
 
 SCRAPERS_DICT = {
-    "AA": [americanAirlines, "https://www.aa.com"], "AC": [aeroplanselnium, "https://www.aeroplan.com/"],
-    "VA": [vigranAtlantic, "https://www.virginatlantic.com/"]
+    "AA": [americanAirlines, "https://www.aa.com"], "AC": [aeroplanselnium, "https://www.aeroplan.com"],
+    "VS": [vigranAtlantic, "https://www.virginatlantic.com"], "DL":[DeltaSkyMiles, "https://www.delta.com"]
     }
 
 @api_view(['POST'])
