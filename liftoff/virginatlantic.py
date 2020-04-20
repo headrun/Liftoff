@@ -28,7 +28,6 @@ def vigranAtlantic(request_data):
     else:
         arrivalDate = None
     
-     
     request_cabins = data.get('cabins', [])
     cabin_classes = []
     cabinMapping = {'Economy':'Economy','Premium':'Premium Economy','Upper Class':'Business'}
@@ -88,8 +87,8 @@ def vigranAtlantic(request_data):
             }
     response = requests.post('https://www.virginatlantic.com/shop/ow/search', headers=headers, cookies=cookies, data=json.dumps(data),proxies= proxies)
     if response.status_code == 403:
-        response = requests.post('https://www.virginatlantic.com/shop/ow/search', headers=headers, cookies=cookies, data=json.dumps(data),proxies=proxies) 
-    
+        response = requests.post('https://www.virginatlantic.com/shop/ow/search', headers=headers, cookies=cookies, data=json.dumps(data),proxies=proxies)
+ 
     final_dict = []
     data = json.loads(response.text)    
     error_msg = data.get('shoppingError',{}).get('error',{}).get('message',{}).get('message','')
@@ -97,6 +96,23 @@ def vigranAtlantic(request_data):
         print(error_msg)
         return final_dict,error_msg
 
+    itinerary = data.get('itinerary',[])
+    for fare in itinerary:
+        fares = fare.get('fare','')
+        for flg_det in fares:
+            solutionId = flg_det.get('solutionId','')
+    data = {"bestFare":"VSLT","action":"findFlights","destinationAirportRadius":{"unit":"MI","measure":100},"deltaOnlySearch":False,"meetingEventCode":"","originAirportRadius":{"unit":"MI","measure":100},"passengers":[{"type":"ADT","count":request_data.get('passengers', 0)}],"searchType":"selectTripSearch","segments":[{"returnDate":arrivalDate,"departureDate":departureDate,"destination":''.join(request_data.get('arrivals', '')),"origin":''.join(request_data.get('departures', ''))}],"shopType":"MILES","tripType":tripStatus,"priceType":"Award","priceSchedule":"PRICE","awardTravel":True,"refundableFlightsOnly":False,"nonstopFlightsOnly":False,"datesFlexible":True,"flexCalendar":False,"flexAirport":False,"upgradeRequest":False,"pageName":"FLIGHT_SEARCH","cacheKey":"7c8728fc-cba5-4397-8f23-4992b0a947cb","requestPageNum":"1","sortableOptionId":"priceAward","selectedSolutions":[{"sliceIndex":1}],"actionType":"flexDateSearch","initialSearchBy":{"fareFamily":"VSLT","meetingEventCode":"","refundable":False,"flexAirport":False,"flexDate":True,"flexDaysWeeks":"FLEX_DAYS"},"vendorDetails":{},"currentSolution":{"solutionId":solutionId,"solutionIndex":0,"sliceIndex":1}}
+    res = requests.post('https://www.virginatlantic.com/shop/ow/search', headers=headers, cookies=cookies,data=json.dumps(data))
+    data1 = json.loads(res.text)
+    taxes = data1.get('selectedItinerary',[])
+    for tax in taxes:
+        fares1 = tax.get('fare','')
+        for det in fares1:
+            fees = det.get('tax',{})
+            for fee in fees:
+                tax_fee = fee.get('cost',{}).get('currency',{}).get('amount','')
+    final_dict = []
+    data = json.loads(response.text)
     itinerary = data.get('itinerary',[])
     for fare in itinerary:
         Flag = True
@@ -158,7 +174,6 @@ def vigranAtlantic(request_data):
             continue
         fares = fare.get('fare','')            
         fare_classes = {}
-        
         for flg_det in fares:
             programs = flg_det.get('miscFlightInfos',{})
             final_sub_dict = copy.deepcopy(sample_dict)
@@ -171,18 +186,24 @@ def vigranAtlantic(request_data):
             details = flg_det.get('miscFlightInfos','')
             cabinname = flg_det.get('brandByFlightLeg','')
             index = 0
+            award = []
             for name in cabinname:
                 cabinName = name.get('brandName','')
                 final_sub_dict["connections"][index]["cabin"] = cabinName
+                award.append(cabinName)
+                try:
+                    award_type = award[0] , award[1]
+                    final_sub_dict["award_type"] = ','.join(award_type)
+                except:
+                    final_sub_dict["award_type"] = award[0]                
                 index = index +1
             index = 0    
             for cabin in details:
                 fare_class = cabin.get('displayBookingCode','')
                 final_sub_dict["connections"][index]["fare_class"] = fare_class
                 index = index +1
-            final_sub_dict["redemptions"] = [{"miles": miles, "program":program}]
-            final_sub_dict["payments"] = [{"currency": currency, "taxes": taxes, "fees":None}]
-            final_sub_dict["award_type"] = program
+            final_sub_dict["redemptions"] = [{"miles": miles, "program":"Virgin Atlantic"}]
+            final_sub_dict["payments"] = [{"currency": currency, "taxes": taxes, "fees":tax_fee}]
             if len(cabinname)!=0:
                 cabin_available = False
                 for element in final_sub_dict["connections"]:
@@ -194,5 +215,10 @@ def vigranAtlantic(request_data):
                         cabin_available = True
                 if cabin_available:
                     final_dict.append(final_sub_dict)
+    return final_dict, error_msg
 
-    return final_dict, error_msg         
+        
+
+        
+            
+            
