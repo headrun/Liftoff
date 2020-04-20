@@ -199,8 +199,8 @@ def DeltaSkyMiles(request_data):
                     if layoverTime == ':':
                         layoverTime = None
                     airlineDetails["times"] = {'flight': totalAirTime, 'layover': layoverTime}
-                    sample_dict["site_key"] = 'DL'    
-                    #sample_dict["site_key"] = request_data['site_key']
+                    #sample_dict["site_key"] = 'DL'    
+                    sample_dict["site_key"] = request_data['site_key']
 
         if not Flag:
             continue
