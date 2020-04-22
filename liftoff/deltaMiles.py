@@ -10,12 +10,12 @@ from pyvirtualdisplay import Display
 from settings import proxies
 
 def DeltaSkyMiles(request_data):
-    #display = Display(visible=0, size=(1400,1000))
-    #display.start()
+    display = Display(visible=0, size=(1400,1000))
+    display.start()
     driver = webdriver.Firefox()
     driver.get('https://www.delta.com')
     _abck = ''.join([item.get('value') for item in driver.get_cookies() if item.get('name') == '_abck'])
-    #display.stop()
+    display.stop()
     driver.quit()
      
     cabin_classes = []
