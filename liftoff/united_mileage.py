@@ -168,17 +168,22 @@ def UnitedMileagePlus(request_data):
                     sub_dict["times"] = {'flight': "", 'layover': None}
                     sample_dict["connections"].append(sub_dict)
                 getdateTime = flight.get('Connections', [])
+                layoutTime = []
                 for date_element in getdateTime:
                     dateTime.append({'departure': date_element.get('DepartDateTime', ''),
                                      'arrival': date_element.get('DestinationDateTime', ''),
-                                     'flightTime': flight.get('TravelMinutes', '')})
+                                     'flightTime': date_element.get('TravelMinutes', '')})
+                    layoutTime.append(date_element.get('ConnectTimeMinutes', ''))
                 sumOfFlightTimes = 0
                 sumOfLayoverTimes = 0
                 for (con, dateTime) in zip(sample_dict["connections"], dateTime):
-                    con["departures"]["when"] = dateTime["departure"]
-                    con["arrivals"]["when"] = dateTime["arrival"]
-                    con["times"]["flight"] = dateTime["flightTime"]
+                    con["departures"]["when"] = datetime.strptime(dateTime["departure"], "%m/%d/%Y %H:%M").strftime('%Y-%m-%dT%H:%M')
+                    con["arrivals"]["when"] = datetime.strptime(dateTime["arrival"], "%m/%d/%Y %H:%M").strftime('%Y-%m-%dT%H:%M')
+                    con["times"]["flight"] = str(dateTime["flightTime"]//60) + ':' +str(dateTime["flightTime"]%60)
                     sumOfFlightTimes = sumOfFlightTimes + dateTime["flightTime"]
+                for (con, layout) in zip(sample_dict["connections"][1:], layoutTime):
+                    sumOfLayoverTimes = sumOfLayoverTimes + layout
+                    con["times"]["layover"] = str(layout // 60) + ':' + str(layout % 60)
                 fareDetails = flight.get('Products', [])
                 for fare in fareDetails:
                     final_sub_dict = {}
@@ -193,7 +198,7 @@ def UnitedMileagePlus(request_data):
                                 con["cabin"] = cabin_mapping[cabin.strip()]
 
                             final_sub_dict["distance"] = None
-                            final_sub_dict["times"] = {"flight": sumOfFlightTimes, "layover": None}
+                            final_sub_dict["times"] = {"flight": str(sumOfFlightTimes//60) + ':' +str(sumOfFlightTimes%60), "layover": str(sumOfLayoverTimes//60) + ':' +str(sumOfLayoverTimes%60)}
                             miles_details = fare.get('Prices', [])
                             tax_details = fare.get('TaxAndFees')
                             miles, taxandfees, currency = 0, 0.0, "USD"
@@ -202,8 +207,11 @@ def UnitedMileagePlus(request_data):
                             if tax_details:
                                 taxandfees = tax_details.get("Amount", 0.0)
                                 currency = tax_details.get("Currency", '')
-                            final_sub_dict["redemptions"] = [{"miles": miles, "program": "MilagePlus"}]
+                            final_sub_dict["redemptions"] = [{"miles": miles, "program": "MileagePlus"}]
                             final_sub_dict["payments"] = [{"currency": currency, "taxes": taxandfees, "fees": None}]
                             final_sub_dict["site_key"] = request_data['site_key']
+                            final_sub_dict["award_type"] = cabin
                             final_dict.append(final_sub_dict)
     return final_dict,errorMsg
+
+
