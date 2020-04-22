@@ -5,7 +5,7 @@ import copy
 from datetime import datetime, timedelta
 import json
 import requests
-
+from selenium.webdriver.firefox.options import Options as FirefoxOptions
 
 def UnitedMileagePlus(request_data):
     final_dict = []
@@ -44,23 +44,16 @@ def UnitedMileagePlus(request_data):
     cabin_classes = list(set(cabin_classes))
 
     # login using selenium
-    display = Display(visible=0, size=(1400, 1000))
-    display.start()
-    driver = webdriver.Firefox()
+    options = FirefoxOptions()
+    options.add_argument("--headless")
+    driver = webdriver.Firefox(options=options)
     driver.get('https://www.united.com/en/us')
-    driver.find_element_by_id("loginButton").click()
-    driver.find_element_by_id("loginFormModel.login").click()
-    driver.find_element_by_id("loginFormModel.login").send_keys("DXT81215")
-    driver.find_element_by_id("loginFormModel.password").click()
-    driver.find_element_by_id("loginFormModel.password").send_keys("Roberts@11")
-    sleep(2)
-    driver.find_element_by_xpath('//button[contains(@class,"signInButton")]').click()
+
     # getting cookies from selenium driver
     cookies = {}
     cookies_data = driver.get_cookies()
     for ele in cookies_data:
         cookies[ele["name"]] = ele["value"]
-    display.stop()
     driver.quit()
     # python request for getting flight details
     headers = {
