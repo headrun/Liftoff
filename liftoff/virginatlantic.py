@@ -104,6 +104,7 @@ def vigranAtlantic(request_data):
     data = {"bestFare":"VSLT","action":"findFlights","destinationAirportRadius":{"unit":"MI","measure":100},"deltaOnlySearch":False,"meetingEventCode":"","originAirportRadius":{"unit":"MI","measure":100},"passengers":[{"type":"ADT","count":request_data.get('passengers', 0)}],"searchType":"selectTripSearch","segments":[{"returnDate":arrivalDate,"departureDate":departureDate,"destination":''.join(request_data.get('arrivals', '')),"origin":''.join(request_data.get('departures', ''))}],"shopType":"MILES","tripType":tripStatus,"priceType":"Award","priceSchedule":"PRICE","awardTravel":True,"refundableFlightsOnly":False,"nonstopFlightsOnly":False,"datesFlexible":True,"flexCalendar":False,"flexAirport":False,"upgradeRequest":False,"pageName":"FLIGHT_SEARCH","cacheKey":"7c8728fc-cba5-4397-8f23-4992b0a947cb","requestPageNum":"1","sortableOptionId":"priceAward","selectedSolutions":[{"sliceIndex":1}],"actionType":"flexDateSearch","initialSearchBy":{"fareFamily":"VSLT","meetingEventCode":"","refundable":False,"flexAirport":False,"flexDate":True,"flexDaysWeeks":"FLEX_DAYS"},"vendorDetails":{},"currentSolution":{"solutionId":solutionId,"solutionIndex":0,"sliceIndex":1}}
     res = requests.post('https://www.virginatlantic.com/shop/ow/search', headers=headers, cookies=cookies,data=json.dumps(data))
     data1 = json.loads(res.text)
+    tax_fee = None
     taxes = data1.get('selectedItinerary',[])
     for tax in taxes:
         fares1 = tax.get('fare','')
