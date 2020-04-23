@@ -179,11 +179,11 @@ def UnitedMileagePlus(request_data):
                 for (con, dateTime) in zip(sample_dict["connections"], dateTime):
                     con["departures"]["when"] = datetime.strptime(dateTime["departure"], "%m/%d/%Y %H:%M").strftime('%Y-%m-%dT%H:%M')
                     con["arrivals"]["when"] = datetime.strptime(dateTime["arrival"], "%m/%d/%Y %H:%M").strftime('%Y-%m-%dT%H:%M')
-                    con["times"]["flight"] = str(dateTime["flightTime"]//60) + ':' +str(dateTime["flightTime"]%60)
+                    con["times"]["flight"] = str(dateTime["flightTime"]//60).zfill(2) + ':' +str(dateTime["flightTime"]%60).zfill(2)
                     sumOfFlightTimes = sumOfFlightTimes + dateTime["flightTime"]
                 for (con, layout) in zip(sample_dict["connections"][1:], layoutTime):
                     sumOfLayoverTimes = sumOfLayoverTimes + layout
-                    con["times"]["layover"] = str(layout // 60) + ':' + str(layout % 60)
+                    con["times"]["layover"] = str(layout // 60).zfill(2) + ':' + str(layout % 60).zfill(2)
                 fareDetails = flight.get('Products', [])
                 for fare in fareDetails:
                     final_sub_dict = {}
@@ -198,7 +198,7 @@ def UnitedMileagePlus(request_data):
                                 con["cabin"] = cabin_mapping[cabin.strip()]
 
                             final_sub_dict["distance"] = None
-                            final_sub_dict["times"] = {"flight": str(sumOfFlightTimes//60) + ':' +str(sumOfFlightTimes%60), "layover": str(sumOfLayoverTimes//60) + ':' +str(sumOfLayoverTimes%60)}
+                            final_sub_dict["times"] = {"flight": str(sumOfFlightTimes//60).zfill(2) + ':' +str(sumOfFlightTimes%60).zfill(2), "layover": str(sumOfLayoverTimes//60).zfill(2) + ':' +str(sumOfLayoverTimes%60).zfill(2)}
                             miles_details = fare.get('Prices', [])
                             tax_details = fare.get('TaxAndFees')
                             miles, taxandfees, currency = 0, 0.0, "USD"
