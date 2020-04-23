@@ -134,6 +134,7 @@ def DeltaSkyMiles(request_data):
             "currentSolution":{"solutionId":solutionId,"solutionIndex":0,"sliceIndex":1}}    
     res = requests.post('https://www.delta.com/shop/ow/search', headers=headers, cookies=cookies, data=json.dumps(data))
     data1 = json.loads(res.text)
+    tax_fee = None
     taxes = data1.get('selectedItinerary',[])
     for tax in taxes:
         fares1 = tax.get('fare','')
