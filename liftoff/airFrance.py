@@ -7,8 +7,13 @@ import requests
 import re
 import calendar
 from pytz import country_timezones, timezone
-
+import random
+from configparser import ConfigParser
 def airFrance(request_data):
+    cfg_obj = ConfigParser()
+    cfg_obj.read('credentials.cfg')
+    listofusers = eval(cfg_obj.get('AF', 'Accounts'))
+    random_user = random.choice(listofusers)
     final_dict = []
     cabin_classes = []
     cabin_data_fetch = []
@@ -18,8 +23,8 @@ def airFrance(request_data):
         "arrivals": ''.join(request_data.get('arrivals','')),
         "departures": ''.join(request_data.get('departures','')),
         "passengers":request_data.get('arrival_date', {}).get('when', ''),
-        "username":request_data.get('username',''),
-        "password":request_data.get('password','')
+        "username":random_user.split('<>')[0],
+        "password":random_user.split('<>')[1]
     }
     departureDateTime = request_data.get('departure_date', {}).get('when', '')
     arrivalDateTime = request_data.get('arrival_date', {}).get('when', '')
