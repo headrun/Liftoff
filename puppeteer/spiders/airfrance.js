@@ -7,7 +7,7 @@ async function franceAirline(request_date)
 {
     var bodyHTML
     await puppeteer.use(StealthPlugin())
-    await puppeteer.launch({executablePath: '/usr/bin/google-chrome', headless: false }).then(async browser => {
+    await puppeteer.launch({executablePath: '/usr/bin/google-chrome', headless: true }).then(async browser => {
     try {
       const page = await browser.newPage()
       await page.goto('https://www.airfrance.us/')
