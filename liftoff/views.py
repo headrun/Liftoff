@@ -3,17 +3,7 @@ from rest_framework.decorators import api_view
 from rest_framework.status import HTTP_400_BAD_REQUEST,\
 HTTP_404_NOT_FOUND, HTTP_200_OK, HTTP_500_INTERNAL_SERVER_ERROR
 from rest_framework.response import Response
-from .americanAirline import americanAirlines
-from .aeroplan import aeroplanselnium
-from .virginatlantic import vigranAtlantic
-from .deltaMiles import DeltaSkyMiles
-from .united_mileage import UnitedMileagePlus
-
-SCRAPERS_DICT = {
-    "AA": [americanAirlines, "https://www.aa.com"], "AC": [aeroplanselnium, "https://www.aeroplan.com"],
-    "VS": [vigranAtlantic, "https://www.virginatlantic.com"], "DL":[DeltaSkyMiles, "https://www.delta.com"],
-    "UA": [UnitedMileagePlus, "https://www.united.com"]
-    }
+from .spiders import *
 
 @api_view(['POST'])
 def runscraper(request):
