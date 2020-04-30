@@ -186,8 +186,12 @@ def airFrance(request_data):
                                 else:
                                     con_element["cabin"] = "Economy"
                             else:
-                                result_cabin_name = ''.join([ele for ele in cabin_classes if (ele.lower() in con_element["cabin"].lower())])
-                                if result_cabin_name:
+                                result_cabin = any(ele.lower() in con_element["cabin"].lower() for ele in cabin_classes)
+                                try:
+                                    result_cabin_name = ''.join([ele for ele in cabin_classes if (ele.lower() in con_element["cabin"].lower())][0])
+                                except:
+                                    result_cabin_name = ''
+                                if result_cabin:
                                     con_element["cabin"] = cabin_mapping[result_cabin_name]
                             awardType = awardType+con_element["cabin"]+','
                         totalLayoverTime = 0
@@ -199,7 +203,13 @@ def airFrance(request_data):
                             'layover': str(totalLayoverTime // 60).zfill(2) + ':' + str(totalLayoverTime % 60).zfill(2)
                         }
                         final_sub_dict["award_type"] = awardType[:-1]
-                        final_dict.append(final_sub_dict)
+                        cabinValid = False
+                        for ele_con in final_sub_dict["connections"]:
+                            result = any(ele.lower() in ele_con["cabin"].lower() for ele in cabin_classes)
+                            if result:
+                                cabinValid = True
+                        if cabinValid:
+                            final_dict.append(final_sub_dict)
     return final_dict,errorMsg
 
 def find_city(query):
@@ -207,6 +217,5 @@ def find_city(query):
         for city in cities:
             if query in city:
                 yield timezone(city)
-
 
 
