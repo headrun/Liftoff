@@ -186,7 +186,7 @@ def airFrance(request_data):
                                 else:
                                     con_element["cabin"] = "Economy"
                             else:
-                                result_cabin_name = ''.join([ele for ele in cabin_classes if (ele.lower() in con_element["cabin"].lower())])
+                                result_cabin_name = ''.join([ele for ele in cabin_classes if (ele.lower() in con_element["cabin"].lower())][0])
                                 if result_cabin_name:
                                     con_element["cabin"] = cabin_mapping[result_cabin_name]
                             awardType = awardType+con_element["cabin"]+','
