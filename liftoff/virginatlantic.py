@@ -100,7 +100,6 @@ def vigranAtlantic(request_data):
     if error_msg:
         print(error_msg)
         return final_dict,error_msg
-
     itinerary = data.get('itinerary',[])
     for fare in itinerary:
         fares = fare.get('fare','')
