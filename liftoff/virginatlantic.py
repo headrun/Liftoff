@@ -9,7 +9,6 @@ from selenium import webdriver
 from pyvirtualdisplay import Display
 from settings import proxies
 
-
 def vigranAtlantic(request_data):
     data = request_data
     display = Display(visible=0, size=(1400,1000))
@@ -28,16 +27,22 @@ def vigranAtlantic(request_data):
     else:
         arrivalDate = None
     
+     
     request_cabins = data.get('cabins', [])
     cabin_classes = []
-    cabinMapping = {'Economy':'Economy','Premium':'Premium Economy','Upper Class':'Business'}
+    cabinMapping = {'Economy':'Economy','Premium':'Premium Economy','Main Cabin':'Economy','Business Class':'Business','First Class':'First Class','Upper Class':'Business','Delta One':'Business'}
     for cabin in request_cabins:
         if cabin.lower() == "business":
             cabin_classes.append("Upper Class")
+            cabin_classes.append("Business Class")
+            cabin_classes.append("Delta One")
         elif cabin.lower() == "premium_economy":
             cabin_classes.append("Premium")
         elif cabin.lower() == "economy":
             cabin_classes.append("Economy")
+            cabin_classes.append("Main Cabin")
+        elif cabin.lower() == "first_class":
+            cabin_classes.append("First Class")
     cabin_classes = list(set(cabin_classes))
     
     maxStop = data.get('max_stops')
@@ -95,7 +100,6 @@ def vigranAtlantic(request_data):
     if error_msg:
         print(error_msg)
         return final_dict,error_msg
-
     itinerary = data.get('itinerary',[])
     for fare in itinerary:
         fares = fare.get('fare','')
@@ -112,7 +116,6 @@ def vigranAtlantic(request_data):
             fees = det.get('tax',{})
             for fee in fees:
                 tax_fee = fee.get('cost',{}).get('currency',{}).get('amount','')
-    final_dict = []
     data = json.loads(response.text)
     itinerary = data.get('itinerary',[])
     for fare in itinerary:
@@ -131,10 +134,12 @@ def vigranAtlantic(request_data):
                 fare_classes = {}
 
                 segments = trip.get('flightSegment',[])
+                time = []
                 for segment in segments:
                     legs = segment.get('flightLeg',[])
                     for leg in legs:
-                        total_time = 0
+                        hours = 0
+                        minuts = 0
                         airlineDetails = {}
                         departureAirport = leg.get('originAirportCode','')
                         arrivalAirport = leg.get('destAirportCode','')
@@ -142,9 +147,9 @@ def vigranAtlantic(request_data):
                         arrivalDateTime = leg.get('schedArrivalLocalTs','')
                         aircraftModel = leg.get('aircraft',{}).get('fleetName','')
                         flightNumber = leg.get('viewSeatUrl',{}).get('fltNumber','')
-                        airlineDetails["airlines"] = "VS"
-                        airlineDetails["departures"] = {"when": departureDateTime, "airport": departureAirport}
-                        airlineDetails["arrivals"] = {"when": arrivalDateTime, "airport": arrivalAirport}
+                        airlineDetails["airline"] = leg.get('operatingCarrier',{}).get('code','')
+                        airlineDetails["departure"] = {"when": departureDateTime, "airport": departureAirport}
+                        airlineDetails["arrival"] = {"when": arrivalDateTime, "airport": arrivalAirport}
                         airlineDetails["distance"] = None
                         airlineDetails["flight"] = [flightNumber]
                         try:
@@ -157,17 +162,36 @@ def vigranAtlantic(request_data):
                             aircraftModelType = ''
                         airlineDetails["aircraft"] = {"model": aircraftModelType, "manufacturer": aircraftManufacturer}
                         flighttimes = str(leg.get('duration',{}).get('hour','')) + ':' + str(leg.get('duration',{}).get('minute',''))
-                        ltime = None
+                        hours = hours+leg.get('duration',{}).get('hour','')
+                        minuts = minuts+leg.get('duration',{}).get('minute','')
+                        time.append(hours)
+                        time.append(minuts)
+                        minit = None
+                        try:
+                            total_time = str(time[0]+time[2]) + ':'+str(time[1]+time[3])
+                            minite = time[1]+time[3]
+                            if minite > 60:
+                                hour = 1
+                                minite1 = minite - 60
+                                minit = str(time[0]+time[2] + hour) + ':'+ str(minite1)
+                            else:
+                                minit = str(time[0]+time[2]) + ':'+str(time[1]+time[3])
+                        except:
+                            minit = str(time[0])+':'+str(time[1]) 
                         airlineDetails["redemptions"] = None
                         airlineDetails["payments"] = None
                         airlineDetails["tickets"] = None
                         sample_dict["connections"].append(airlineDetails)
-                        sample_dict['times'] = {'flight': flighttimes, 'layover': ltime}
+                        try:
+                            layover = sample_dict["connections"][0].get('times',{}).get('layover','')
+                        except:
+                            layover = None
+                        sample_dict['times'] = {'flight':minit, 'layover': layover}                  
                     totalAirTime = str(segment.get('totalAirTime',{}).get('hour','')) + ':' + str(segment.get('totalAirTime',{}).get('minute',''))
                     layoverTimes = str(segment.get('layover',{}).get('duration',{}).get('hour','')) + ':'+ str(segment.get('layover',{}).get('duration',{}).get('minute',''))
                     if layoverTimes == ':':
                         layoverTimes = None
-                    airlineDetails["times"] = {'flight': totalAirTime, 'layover': layoverTimes}
+                    airlineDetails["times"] = {'flight': totalAirTime, 'layover': layoverTimes} 
                     #sample_dict["site_key"] = 'VS'    
                     sample_dict["site_key"] = request_data['site_key']
                 
@@ -197,6 +221,8 @@ def vigranAtlantic(request_data):
                     final_sub_dict["award_type"] = ','.join(award_type)
                 except:
                     final_sub_dict["award_type"] = award[0]                
+                if '&#' in final_sub_dict["award_type"]:
+                    final_sub_dict["award_type"] = ''.join(re.findall('(.*)&',final_sub_dict["award_type"]))
                 index = index +1
             index = 0    
             for cabin in details:
