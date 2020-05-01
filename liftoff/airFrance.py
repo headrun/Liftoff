@@ -51,23 +51,29 @@ def airFrance(request_data):
     if errorNode:
         return final_dict,errorNode
     num_stops = request_data.get('max_stops')
-    cabin_mapping = {"Economy":"Economy","Premium Economy":"Premium Economy","Business":"Business","LA Premiere":"First"}
+    cabin_mapping = {"Economy":"Economy","Premium Economy":"Premium Economy","Business":"Business","LA Premiere":"First Class"}
     request_cabins = request_data.get('cabins', [])
+    cabin_hierarchy = []
     for cabin in request_cabins:
         if cabin.lower() == "first_class":
             cabin_data_fetch.append('W')
             cabin_classes.append('LA Premiere')
+            cabin_hierarchy = cabin_hierarchy + ["First Class","Business","Premium Economy","Economy"]
         elif cabin.lower() == "business":
             cabin_data_fetch.append('C')
             cabin_classes.append('Business')
+            cabin_hierarchy = cabin_hierarchy + ["Business", "Premium Economy", "Economy"]
         elif cabin.lower() == "premium_economy":
             cabin_data_fetch.append('W')
             cabin_classes.append("Premium Economy")
+            cabin_hierarchy = cabin_hierarchy + ["Premium Economy", "Economy"]
         elif cabin.lower() == "economy":
             cabin_data_fetch.append('Y')
             cabin_classes.append("Economy")
+            cabin_hierarchy = cabin_hierarchy + ["Economy"]
     cabin_data_fetch = list(set(cabin_data_fetch))
     cabin_classes = list(set(cabin_classes))
+    cabin_hierarchy = list(set(cabin_hierarchy))
 
     miles_details = res.xpath('//tr[contains(@data-price-sort,"main")]')
     flight_Details = res.xpath('//tr[contains(@data-price-sort,"details")]')
@@ -91,7 +97,7 @@ def airFrance(request_data):
                     "when":''.join(flight.xpath('div[2]/div/div[2]/div[1]//text()').extract()).strip(),
                     "airport":''.join(flight.xpath('div[2]/div/div[2]/div[2]//text()').extract()).strip()
                 }
-                sub_dict["airline"] = ''.join(flight.xpath('div[3]/span[2]//text()').extract()).strip()
+                sub_dict["airline"] = flight_number[0:2]
                 aircraft = ''.join(flight.xpath('div[4]/span[2]//text()').extract()).split(' ')
                 if len(aircraft) == 2:
                     model = aircraft[1]
@@ -195,7 +201,7 @@ def airFrance(request_data):
                                     con_element["cabin"] = cabin_mapping[result_cabin_name]
                             awardType = awardType+con_element["cabin"]+','
                         totalLayoverTime = 0
-                        for (conn, layover) in zip(final_sub_dict["connections"][1:], layourTimeDict):
+                        for (conn, layover) in zip(final_sub_dict["connections"][:-1], layourTimeDict):
                             conn["times"]["layover"] = layover
                             totalLayoverTime = int(layover.split(':')[0])*60+int(layover.split(':')[1])
                         final_sub_dict["times"] = {
@@ -204,11 +210,15 @@ def airFrance(request_data):
                         }
                         final_sub_dict["award_type"] = awardType[:-1]
                         cabinValid = False
+                        hierarchy_valid = True
                         for ele_con in final_sub_dict["connections"]:
                             result = any(ele.lower() in ele_con["cabin"].lower() for ele in cabin_classes)
                             if result:
                                 cabinValid = True
-                        if cabinValid:
+                            cabin_hierarchy_valid = any(ele.lower() in ele_con["cabin"].lower() for ele in cabin_hierarchy)
+                            if not cabin_hierarchy_valid:
+                                hierarchy_valid = False
+                        if cabinValid and hierarchy_valid:
                             final_dict.append(final_sub_dict)
     return final_dict,errorMsg
 
