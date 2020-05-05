@@ -16,7 +16,6 @@ def airFrance(request_data):
     random_user = random.choice(listofusers)
     final_dict = []
     cabin_classes = []
-    cabin_data_fetch = []
     errorMsg = ''
 
     request_body = {
@@ -56,22 +55,18 @@ def airFrance(request_data):
     cabin_hierarchy = []
     for cabin in request_cabins:
         if cabin.lower() == "first_class":
-            cabin_data_fetch.append('W')
             cabin_classes.append('LA Premiere')
             cabin_hierarchy = cabin_hierarchy + ["First Class","Business","Premium Economy","Economy"]
         elif cabin.lower() == "business":
-            cabin_data_fetch.append('C')
             cabin_classes.append('Business')
             cabin_hierarchy = cabin_hierarchy + ["Business", "Premium Economy", "Economy"]
         elif cabin.lower() == "premium_economy":
-            cabin_data_fetch.append('W')
             cabin_classes.append("Premium Economy")
             cabin_hierarchy = cabin_hierarchy + ["Premium Economy", "Economy"]
         elif cabin.lower() == "economy":
-            cabin_data_fetch.append('Y')
             cabin_classes.append("Economy")
             cabin_hierarchy = cabin_hierarchy + ["Economy"]
-    cabin_data_fetch = list(set(cabin_data_fetch))
+    cabin_data_fetch = ['W','C','Y']
     cabin_classes = list(set(cabin_classes))
     cabin_hierarchy = list(set(cabin_hierarchy))
 
@@ -103,8 +98,8 @@ def airFrance(request_data):
                     model = aircraft[1]
                     manufacturer = aircraft[0]
                 else:
-                    model = ''.join(flight.xpath('div[4]/span[2]//text()').extract()).strip()
-                    manufacturer=''.join(flight.xpath('div[4]/span[2]//text()').extract()).strip()
+                    model = ''
+                    manufacturer= ''.join(flight.xpath('div[4]/span[2]//text()').extract()).strip()
                 sub_dict["aircraft"] = {
                     "model":model,
                     "manufacturer":manufacturer
@@ -227,5 +222,4 @@ def find_city(query):
         for city in cities:
             if query in city:
                 yield timezone(city)
-
 
