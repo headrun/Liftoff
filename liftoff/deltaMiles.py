@@ -9,6 +9,7 @@ from selenium import webdriver
 from pyvirtualdisplay import Display
 from settings import proxies
 
+
 def DeltaSkyMiles(request_data):
     display = Display(visible=0, size=(1400,1000))
     display.start()
@@ -38,7 +39,7 @@ def DeltaSkyMiles(request_data):
                     'Main Cabin':'Economy',
                     'Premium':'Premium Economy',
                     'Comfort+':'Premium Economy',
-                    'First':'First Class', 
+                    'First':'First Class',
                     'Delta One':'First Class'}
 
     departureDate = request_data.get('departure_date', {}).get('when', '')
@@ -60,6 +61,7 @@ def DeltaSkyMiles(request_data):
         elif cabin.lower() == "economy":
             cabin_classes.append("Economy")
             cabin_classes.append("Main Cabin")
+            
     cabin_classes = list(set(cabin_classes))
 
     maxStop = request_data.get('max_stops')
@@ -99,50 +101,6 @@ def DeltaSkyMiles(request_data):
         print(error_msg)
         return final_dict,error_msg
 
-    itinerary = data.get('itinerary',[])
-    for fare in itinerary:
-        fares = fare.get('fare','')
-        for flg_det in fares:
-            solutionId = flg_det.get('solutionId','')
-        
-    data = {"bestFare":"BE","action":"findFlights",
-            "destinationAirportRadius":{"unit":"MI","measure":100},
-            "deltaOnlySearch":False,
-            "originAirportRadius":{"unit":"MI","measure":100},
-            "passengers":[{"type":"ADT","count":request_data.get('passengers', 0)}],
-            "searchType":"selectTripSearch",
-            "segments":[{"returnDate":arrivalDate,"departureDate":departureDate,"destination":''.join(request_data.get('arrivals', '')),"origin":''.join(request_data.get('departures', ''))}],
-            "shopType":"MILES",
-            "tripType":tripStatus,
-            "priceType":"Award",
-            "priceSchedule":"AWARD",
-            "awardTravel":True,
-            "refundableFlightsOnly":False,
-            "nonstopFlightsOnly":False,
-            "datesFlexible":True,
-            "flexCalendar":False,
-            "flexAirport":False,
-            "upgradeRequest":False,
-            "corporateSMTravelType":"Personal",
-            "pageName":"FLIGHT_SEARCH",
-            "cacheKey":"66fbe8ae-2a8c-4b2a-95ec-89af7a73954c",
-            "requestPageNum":"1",
-            "sortableOptionId":"priceAward",
-            "selectedSolutions":[{"sliceIndex":1}],
-            "actionType":"",
-            "initialSearchBy":{"fareFamily":"BE","meetingEventCode":"","refundable":False,"flexAirport":False,"flexDate":True,"flexDaysWeeks":"FLEX_DAYS"},
-            "currentSolution":{"solutionId":solutionId,"solutionIndex":0,"sliceIndex":1}}    
-    res = requests.post('https://www.delta.com/shop/ow/search', headers=headers, cookies=cookies, data=json.dumps(data))
-    data1 = json.loads(res.text)
-    tax_fee = None
-    taxes = data1.get('selectedItinerary',[])
-    for tax in taxes:
-        fares1 = tax.get('fare','')
-        for det in fares1:
-            fees = det.get('tax',{})
-            for fee in fees:
-                tax_fee = fee.get('cost',{}).get('currency',{}).get('formattedAmount','')
-    final_dict = []
     data = json.loads(response.text)
     itinerary = data.get('itinerary',[])
     for fare in itinerary:
@@ -160,10 +118,13 @@ def DeltaSkyMiles(request_data):
                 sample_dict["connections"] = []
                 fare_classes = {}
                 segments = trip.get('flightSegment',[])
+                time = []
                 for segment in segments:
                     legs = segment.get('flightLeg',[])
                     for leg in legs:
                         total_time = 0
+                        hours = 0
+                        minuts = 0
                         airlineDetails = {}
                         departureAirport = leg.get('originAirportCode','')
                         arrivalAirport = leg.get('destAirportCode','')
@@ -171,9 +132,9 @@ def DeltaSkyMiles(request_data):
                         arrivalDateTime = leg.get('schedArrivalLocalTs','')
                         aircraftModel = leg.get('aircraft',{}).get('fleetName','')
                         flightNumber = leg.get('viewSeatUrl',{}).get('fltNumber','')
-                        airlineDetails["airlines"] = "DL"
-                        airlineDetails["departures"] = {"when": departureDateTime, "airport": departureAirport}
-                        airlineDetails["arrivals"] = {"when": arrivalDateTime, "airport": arrivalAirport}
+                        airlineDetails["airline"] = leg.get('operatingCarrier',{}).get('code','')
+                        airlineDetails["departure"] = {"when": departureDateTime, "airport": departureAirport}
+                        airlineDetails["arrival"] = {"when": arrivalDateTime, "airport": arrivalAirport}
                         airlineDetails["distance"] = None
                         airlineDetails["flight"] = [flightNumber]
                         try:
@@ -186,19 +147,39 @@ def DeltaSkyMiles(request_data):
                             aircraftModelType = ''
                         airlineDetails["aircraft"] = {"model": aircraftModelType, "manufacturer": aircraftManufacturer}
                         flighttimes = str(leg.get('duration',{}).get('hour','')) + ':' + str(leg.get('duration',{}).get('minute',''))
-                        ltime = None
-
+                        hours = hours+leg.get('duration',{}).get('hour','')
+                        minuts = minuts+leg.get('duration',{}).get('minute','')
+                        time.append(hours)
+                        time.append(minuts)
+                        minit = None
+                        try:
+                            total_time = str(time[0]+time[2]) + ':'+str(time[1]+time[3])
+                            minite = time[1]+time[3]
+                            if minite > 60:
+                                hour = 1
+                                minite1 = minite - 60
+                                minit = str(time[0]+time[2] + hour) + ':'+ str(minite1)
+                            else:
+                                minit = str(time[0]+time[2]) + ':'+str(time[1]+time[3])
+                        except:
+                            minit = str(time[0])+':'+str(time[1])
                         airlineDetails["redemptions"] = None
                         airlineDetails["payments"] = None
                         airlineDetails["tickets"] = None
                         sample_dict["connections"].append(airlineDetails)
-                        sample_dict['times'] = {'flight': flighttimes, 'layover': ltime}
+ 
+                        layover = sample_dict["connections"][0].get('times',{}).get('layover','')
+                        if layover == '':
+                            layover = None
+                        sample_dict['times'] = {'flight':minit, 'layover': layover}
                 
                     totalAirTime = str(segment.get('totalAirTime',{}).get('hour','')) + ':' + str(segment.get('totalAirTime',{}).get('minute',''))
                     layoverTime = str(segment.get('layover',{}).get('duration',{}).get('hour','')) + ':'+ str(segment.get('layover',{}).get('duration',{}).get('minute',''))
-                    if layoverTime == ':':
-                        layoverTime = None
-                    airlineDetails["times"] = {'flight': totalAirTime, 'layover': layoverTime}
+                    try:
+                        layoverTimes = datetime.strptime(layoverTime,'%H:%M').strftime('%H:%M')
+                    except:
+                        layoverTimes = None
+                    airlineDetails["times"] = {'flight': totalAirTime, 'layover': layoverTimes}
                     #sample_dict["site_key"] = 'DL'    
                     sample_dict["site_key"] = request_data['site_key']
 
@@ -226,7 +207,7 @@ def DeltaSkyMiles(request_data):
                 award.append(cabinName)
                 try:
                     award_type = award[0] , award[1]
-                    final_sub_dict["award_type"] = ', '.join(award_type)
+                    final_sub_dict["award_type"] = ','.join(award_type)
                 except:
                     final_sub_dict["award_type"] = award[0]
                 index = index +1
@@ -237,7 +218,7 @@ def DeltaSkyMiles(request_data):
                 final_sub_dict["connections"][index]["fare_class"] = fare_class
                 index = index +1
             final_sub_dict["redemptions"] = [{"miles": miles, "program":"Delta SkyMiles"}]
-            final_sub_dict["payments"] = [{"currency": currency, "taxes": taxes, "fees":tax_fee}]
+            final_sub_dict["payments"] = [{"currency": currency, "taxes": taxes, "fees":None}]
             if len(cabinname)!=0:
                 cabin_available = False
                 for element in final_sub_dict["connections"]:
@@ -250,4 +231,12 @@ def DeltaSkyMiles(request_data):
                 if cabin_available:
                     final_dict.append(final_sub_dict)
 
-    return final_dict , error_msg
+    return final_dict , error_msg 
+
+
+        
+
+
+
+
+
