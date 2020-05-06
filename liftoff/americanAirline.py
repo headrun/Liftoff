@@ -1,5 +1,5 @@
 import json
-import copy
+from copy import deepcopy
 from datetime import datetime, timedelta
 import requests
 
@@ -12,11 +12,18 @@ def americanAirlines(request_data):
     arrivals = request_data.get('arrivals', [])
     trip_status = 'RoundTrip' if arrival_date else 'OneWay'
 
+    award_mapping = {
+        'Economy': 'AAnytime Main Cabin',
+        'Premium Economy': 'AAnytime Premium Economy',
+        'Business': 'AAnytime Business',
+        'First Class': 'AAnytime First'
+    }
+
     cabin_mapping = {
-        'COACH': 'economy',
-        'PREMIUM_ECONOMY': 'premium_economy',
-        'BUSINESS': 'business',
-        'FIRST': 'first_class'
+        'COACH': 'Economy',
+        'PREMIUM_ECONOMY': 'Premium Economy',
+        'BUSINESS': 'Business',
+        'FIRST': 'First Class'
     }
 
     cabin_classes = []
@@ -161,11 +168,12 @@ def americanAirlines(request_data):
 
             pricing_details = result_slice.get('pricingDetail', [])
             for price_details in pricing_details:
-                final_sub_dict = copy.deepcopy(_dict)
+                final_sub_dict = deepcopy(_dict)
                 if price_details.get('productAvailable', False):
                     cabin = price_details.get('productType', '')
                     if cabin in cabin_classes:
-                        product_benifits = price_details.get('productBenefits', '')
+                        cabin = cabin_mapping.get(cabin, '')
+                        award_type = award_mapping.get(cabin, '')
                         miles = price_details.get('perPassengerAwardPoints', 0)
                         currency = price_details.get('perPassengerDisplayTotal', {}).get('currency', '')
                         taxes = price_details.get('perPassengerDisplayTotal').get('amount', '')
@@ -180,7 +188,7 @@ def americanAirlines(request_data):
 
                         final_sub_dict.update({
                             "redemptions": [{"miles": miles, "program": "American AAdvantage"}],
-                            "award_type": product_benifits,
+                            "award_type": award_type,
                             "payments": [{"currency": currency, "taxes": taxes, "fees": None}]
                         })
                         final_dict.append(final_sub_dict)
