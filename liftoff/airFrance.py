@@ -7,6 +7,7 @@ import requests
 import re
 import calendar
 from pytz import country_timezones, timezone
+import pytz
 import random
 from configparser import ConfigParser
 def airFrance(request_data):
@@ -74,6 +75,13 @@ def airFrance(request_data):
     flight_Details = res.xpath('//tr[contains(@data-price-sort,"details")]')
     cabinDetailsJSON = ''.join(res.xpath('//script[8]//text()').extract()).split("JSON.parse(\'")[1].split("\')")[0]
     cabinDetails = json.loads(cabinDetailsJSON)
+
+    file = open("airport_codes.txt","r")
+    if file.mode == "r":
+        contents = file.read()
+    airport_code = json.loads(contents)
+    list_getting_airportcode = {}
+
     for (miles_element,flight_element) in zip(miles_details,flight_Details):
         sample_dict = {}
         sample_dict["connections"] = []
@@ -132,6 +140,43 @@ def airFrance(request_data):
                     totalFlightTime = 0
                     if cabin_valid:
                         final_sub_dict = copy.deepcopy(sample_dict)
+                        for con in final_sub_dict["connections"]:
+                            try:
+                                airport_departure_name = con['departure']["airport"].split(',')[1].strip()
+                                airport_departure_city = con['departure']["airport"].split(',')[0].strip()
+                            except:
+                                airport_departure_name = con['departure']["airport"]
+                                airport_departure_city = con['departure']["airport"]
+                            available = False
+                            for key,value in airport_code.items():
+                                if airport_departure_city in value["city"]:
+                                    available = True
+                                    con['departure']["airport"] = key
+                                    con['departure']["timezone"] = value["timeZone"]
+                            if not available:
+                                for key,value in airport_code.items():
+                                    if airport_departure_name in value["name"]:
+                                        con['departure']["airport"] = key
+                                        con['departure']["timezone"] = value["timeZone"]
+                        for con in final_sub_dict["connections"]:
+                            try:
+                                airport_arrival_name = con['arrival']["airport"].split(',')[1].strip()
+                                airport_arrival_city = con['arrival']["airport"].split(',')[0].strip()
+                            except:
+                                airport_arrival_name = con['arrival']["airport"]
+                                airport_arrival_city = con['arrival']["airport"]
+                            available = False
+                            for key,value in airport_code.items():
+                                if airport_arrival_city in value["city"]:
+                                    available = True
+                                    con['arrival']["airport"] = key
+                                    con['arrival']["timezone"] = value["timeZone"]
+                            if not available:
+                                for key,value in airport_code.items():
+                                    if airport_arrival_name in value["name"]:
+                                        con['arrival']["airport"] = key
+                                        con['arrival']["timezone"] = value["timeZone"]
+
                         for (con, cabin_element) in zip(final_sub_dict["connections"], cabin_valid):
                             con["cabin"] = cabin_element
                             try:
@@ -152,12 +197,14 @@ def airFrance(request_data):
                                 recordarrivalDate = departureDateTime
                             recordarrivalDateTime = recordarrivalDate + ' ' + recordarrivalTime
                             con['arrival']["when"] = datetime.strptime(recordarrivalDateTime,"%Y-%m-%d %I:%M %p").strftime('%Y-%m-%dT%H:%M')
-                            departure_place = '_'.join(con['departure']["airport"].split(',')[0].split(' '))
-                            arrival_place = '_'.join(con['arrival']["airport"].split(',')[0].split(' '))
-                            for tz in find_city(departure_place):
-                                departure_timezone = tz
-                            for tz1 in find_city(arrival_place):
-                                arrival_timezone = tz1
+                            # departure_place = '_'.join(con['departure']["airport"].split(',')[0].split(' '))
+                            # arrival_place = '_'.join(con['arrival']["airport"].split(',')[0].split(' '))
+                            # for tz in find_city(departure_place):
+                            #     departure_timezone = tz
+                            # for tz1 in find_city(arrival_place):
+                            #     arrival_timezone = tz1
+                            departure_timezone = pytz.timezone(con["departure"]["timezone"])
+                            arrival_timezone = pytz.timezone(con["arrival"]["timezone"])
                             timezone_departure = datetime.strptime(con['departure']["when"],"%Y-%m-%dT%H:%M")
                             con['departure']["when"] = departure_timezone.localize(timezone_departure).strftime('%Y-%m-%dT%H:%M:%S %Z%z')
                             timezone_departure_datetime = departure_timezone.localize(timezone_departure).astimezone(arrival_timezone)
@@ -167,6 +214,8 @@ def airFrance(request_data):
                             flightTimeMinites = (timezone_arrival_datetime - timezone_departure_datetime).seconds // 60
                             totalFlightTime = totalFlightTime+flightTimeMinites
                             con["times"]["flight"] = str(flightTimeMinites // 60).zfill(2) + ':' + str(flightTimeMinites % 60).zfill(2)
+                            del con['arrival']["timezone"]
+                            del con['departure']["timezone"]
                         final_sub_dict["redemptions"] = [{
                             "miles": cabin_dict["cost"],
                             "program": "Flying Blue"
@@ -198,7 +247,7 @@ def airFrance(request_data):
                         totalLayoverTime = 0
                         for (conn, layover) in zip(final_sub_dict["connections"][:-1], layourTimeDict):
                             conn["times"]["layover"] = layover
-                            totalLayoverTime = int(layover.split(':')[0])*60+int(layover.split(':')[1])
+                            totalLayoverTime = totalLayoverTime + int(layover.split(':')[0])*60+int(layover.split(':')[1])
                         final_sub_dict["times"] = {
                             "flight": str(totalFlightTime // 60).zfill(2) + ':' + str(totalFlightTime % 60).zfill(2),
                             'layover': str(totalLayoverTime // 60).zfill(2) + ':' + str(totalLayoverTime % 60).zfill(2)
@@ -222,4 +271,5 @@ def find_city(query):
         for city in cities:
             if query in city:
                 yield timezone(city)
+
 
