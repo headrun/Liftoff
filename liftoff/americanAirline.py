@@ -1,10 +1,36 @@
 import json
 import copy
-from datetime import datetime
+from datetime import datetime, timedelta
 import requests
 
 def americanAirlines(request_data):
-    data = request_data
+    max_stops = request_data.get('max_stops', 0)
+    passengers_count = request_data.get('passengers', 0)
+    departure_date = request_data.get('departure_date', {}).get('when', '')
+    arrival_date = request_data.get('arrival_date', {}).get('when', '')
+    departures = request_data.get('departures', [])
+    arrivals = request_data.get('arrivals', [])
+    trip_status = 'RoundTrip' if arrival_date else 'OneWay'
+
+    cabin_mapping = {
+        'COACH': 'economy',
+        'PREMIUM_ECONOMY': 'premium_economy',
+        'BUSINESS': 'business',
+        'FIRST': 'first_class'
+    }
+
+    cabin_classes = []
+    request_cabins = request_data.get('cabins', [])
+    for cabin in request_cabins:
+        if cabin.lower() == "first_class":
+            cabin_classes.append("FIRST")
+        elif cabin.lower() == "business":
+            cabin_classes.append("BUSINESS")
+        elif cabin.lower() == "premium_economy":
+            cabin_classes.append("PREMIUM_ECONOMY")
+        elif cabin.lower() == "economy":
+            cabin_classes.append("COACH")
+
     headers = {
         'authority': 'www.americanairlines.co.uk',
         'accept': 'application/json, text/plain, */*',
@@ -18,156 +44,145 @@ def americanAirlines(request_data):
         'referer': 'https://www.americanairlines.co.uk/booking/choose-flights',
         'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8,te;q=0.7,ta;q=0.6',
     }
-    departureDate = data.get('departure_date', {}).get('when', '')
-    arrivalDate = data.get('arrival_date', {}).get('when', '')
-    request_cabins = data.get('cabins', [])
-    cabin_classes = []
-    cabinMapping = {
-        'COACH':'economy',
-        'PREMIUM_ECONOMY':'premium_economy',
-        'BUSINESS':'business',
-        'FIRST':'first_class'
-    }
-    for cabin in request_cabins:
-        if cabin.lower() == "first_class":
-            cabin_classes.append("FIRST")
-        elif cabin.lower() == "business":
-            cabin_classes.append("BUSINESS")
-        elif cabin.lower() == "premium_economy":
-            cabin_classes.append("PREMIUM_ECONOMY")
-        elif cabin.lower() == "economy":
-            cabin_classes.append("COACH")
-    tripStatus = 'RoundTrip' if arrivalDate else 'OneWay'
-    maxStop = data.get('max_stops', 0)
+
     data = {
         "allCarriers": True,
-        "departureDate": departureDate,
-        "destination": ''.join(data.get('arrivals', [])),
+        "departureDate": departure_date,
+        "destination": ''.join(arrivals),
         "errorCode": "",
         "locale": "en_US",
         "loyaltyInfo": {"loyaltyId": "", "eliteLevel": "", "loyaltyBalance": ""},
-        "origin": ''.join(data.get('departures', [])),
-        "passengers": [{"type": "adult", "count": data.get('passengers', 0)}],
+        "origin": ''.join(departures),
+        "passengers": [{"type": "adult", "count": passengers_count}],
         "selectedProducts": [],
-        "returnDate": arrivalDate,
+        "returnDate": arrival_date,
         "searchType": "Award",
         "sessionId": "",
         "sliceIndex": 0,
         "solutionId": "",
         "solutionSet": "",
-        "tripType": tripStatus,
+        "tripType": trip_status,
         "cabinType": "",
         "maxStopCount": None
     }
+
     final_dict = []
-    data = json.dumps(data)
-    response = requests.post('https://www.americanairlines.in/booking/api/search/v2/itinerary', headers=headers, data=data)
+    url = 'https://www.americanairlines.in/booking/api/search/v2/itinerary'
+    response = requests.post(url, headers=headers, data=json.dumps(data))
     json_data = json.loads(response.text)
-    errorMsg = json_data.get('message', '')
-    if errorMsg:
-        print("Invalid Request")
-        return final_dict, errorMsg
 
-    slice_list = json_data.get('slices', [])
+    error_msg = json_data.get('message', '')
+    if error_msg:
+        return final_dict, error_msg
+
     final_dict = []
-    for ele in slice_list:
-        sample_dict = {}
-        sample_dict["distance"] = None
-        sample_dict["num_stops"] = ele.get('stops', 0)
-        if sample_dict["num_stops"] <= maxStop:
-            segments = ele.get('segments', [])
-            sample_dict["connections"] = []
-            ele_arrival = ele.get('destination', {}).get('code', '')
-            ele_departure = ele.get('origin', {}).get('code', '')
+    result_slices = json_data.get('slices', [])
+    for result_slice in result_slices:
+        final_flight_times, final_layover_times = [], []
+        _dict, fare_classes, connections = {}, {}, []
 
-            request_arrivals = request_data.get('arrivals', '')
-            request_departures = request_data.get('departures', '')
+        total_duration = result_slice.get('durationInMinutes', 0)
+        _arrival = result_slice.get('destination', {}).get('code', '')
+        _departure = result_slice.get('origin', {}).get('code', '')
 
-            if (ele_arrival not in request_arrivals) or (ele_departure not in request_departures):
-                continue
+        if (_arrival not in arrivals) or (_departure not in departures):
+            continue
 
-            fare_classes = {}
+        stops = result_slice.get('stops', 0)
+        if stops <= max_stops:
+            segments = result_slice.get('segments', [])
             for segment_element in segments:
-                total_time = 0
-                airlineDetails = {}
-                airLine = segment_element.get('flight', {}).get('carrierCode', '')
-                flightNo = segment_element.get('flight', {}).get('flightNumber', '')
-                arrivalDateTime = segment_element.get('arrivalDateTime', '')
-                arrivalAirport = segment_element.get('destination', {}).get('code', '')
-                departureDateTime = segment_element.get('departureDateTime', '')
-                departureAirport = segment_element.get('origin', {}).get('code', '')
-                airlineDetails["airline"] = "AA"
-                airlineDetails["departure"] = {"when": departureDateTime, "airport": departureAirport}
-                airlineDetails["arrival"] = {"when": arrivalDateTime, "airport": arrivalAirport}
-                aircraftModel = segment_element.get('legs', [{}])[0].get('aircraft', {}).get('shortName')
-                airlineDetails["distance"] = None
-                flightNumber = airLine + flightNo
-                airlineDetails["flight"] = [flightNumber]
-                try:
-                    aircraftManufacturer = aircraftModel.split(' ')[0]
-                except:
-                    aircraftManufacturer = ''
-                try:
-                    aircraftModelType = aircraftModel.split(' ')[1]
-                except:
-                    aircraftModelType = ''
-                airlineDetails["aircraft"] = {"model": aircraftModelType, "manufacturer": aircraftManufacturer}
+                aircraft_manufacturer, aircraft_model_type, airline_details = '', '', {}
+                airline = segment_element.get('flight', {}).get('carrierCode', '')
+                flight_no = '%s%s' % (airline, segment_element.get('flight', {}).get('flightNumber', ''))
+                arrival = segment_element.get('destination', {}).get('code', '')
+                departure = segment_element.get('origin', {}).get('code', '')
+                arrival_datetime = segment_element.get('arrivalDateTime', '')
+                departure_datetime = segment_element.get('departureDateTime', '')
+
                 legs = segment_element.get('legs', [])
                 for leg in legs:
-                    productDetails = leg.get('productDetails', [])
-                    for product in productDetails:
-                        fare_classes.setdefault(aircraftModelType, {}).update({product.get('productType', ''): product.get('bookingCode', '')})
-                    flightTotalTime = leg.get('durationInMinutes', 0)
-                    fTime = None
-                    if flightTotalTime != 0:
-                        fTime = str(int(flightTotalTime / 60)) + ':' + str(flightTotalTime % 60)
-                        fTime = datetime.strptime(fTime, "%H:%M").strftime('%H:%M')
-                    total = leg.get('connectionTimeInMinutes', 0)
-                    lTime = None
-                    if total != 0:
-                        total_time = total_time + total
-                        lTime = str(int(total / 60)) + ':' + str(total % 60)
-                        try:
-                            lTime = datetime.strptime(lTime, "%H:%M").strftime('%H:%M')
-                        except:
-                            lTime = lTime
-                    airlineDetails["times"] = {"flight": fTime, "layover": lTime}
-                airlineDetails["redemptions"] = None
-                airlineDetails["payments"] = None
-                airlineDetails["tickets"] = None
-                sample_dict["connections"].append(airlineDetails)
+                    aircraft_details = leg.get('aircraft', {}).get('shortName', '')
+                    if aircraft_details:
+                        aircraft_manufacturer = aircraft_details.split(' ')[0]
+                        aircraft_model_type = aircraft_details.split(' ')[-1]
 
-            connectionTimeInMinutes = str(int(total_time / 60)) + ':' + str(total_time % 60)
-            layoverTime = datetime.strptime(connectionTimeInMinutes, "%H:%M").strftime('%H:%M')
-            if layoverTime == '00:00':
-                layoverTime = None
-            durationInMinutes = ele.get('durationInMinutes', 0)
-            duration = str(int(durationInMinutes / 60)) + ':' + str(durationInMinutes % 60)
-            try:
-                flightTime = datetime.strptime(duration, "%H:%M").strftime('%H:%M')
-            except:
-                flightTime = duration
-            sample_dict["times"] = {'flight': flightTime, 'layover': layoverTime}
-            sample_dict["site_key"] = request_data['site_key']
-            webSpecial = []
-            pricingDetails = ele.get('pricingDetail', [])
-            for price in pricingDetails:
-                final_sub_dict = copy.deepcopy(sample_dict)
-                if price.get('productAvailable') == True:
-                    cabin = price.get('productType')
+                    fare_classes.setdefault(aircraft_model_type, {})
+                    product_details = leg.get('productDetails', [])
+                    for product in product_details:
+                        fare_classes.get(aircraft_model_type, {}).update(
+                            {product.get('productType', ''): product.get('bookingCode', '')})
+
+                    flight_time = leg.get('durationInMinutes', '00:00')
+                    if ':' not in str(flight_time):
+                        final_flight_times.append(flight_time)
+                        flight_time = timedelta(minutes=flight_time)
+                        flight_time = datetime.strptime(str(flight_time), "%H:%M:%S").strftime('%H:%M')
+
+                    layover_time = leg.get('connectionTimeInMinutes', '00:00')
+                    if ':' not in str(layover_time):
+                        final_layover_times.append(layover_time)
+                        layover_time = timedelta(minutes=layover_time)
+                        layover_time = datetime.strptime(str(layover_time), "%H:%M:%S").strftime('%H:%M')
+
+                airline_details.update({
+                    "airline": airline,
+                    "flight": [flight_no],
+                    "departure": {"when": departure_datetime, "airport": departure},
+                    "arrival": {"when": arrival_datetime, "airport": arrival},
+                    "distance": None,
+                    "aircraft": {"model": aircraft_model_type, "manufacturer": aircraft_manufacturer},
+                    "times": {"flight": flight_time, "layover": layover_time},
+                    "redemptions": None,
+                    "payments": None,
+                    "tickets": None
+                })
+                connections.append(airline_details)
+
+            total_layover_time = sum(final_layover_times)
+            total_flight_time = total_duration - total_layover_time
+
+            total_flight_time = timedelta(minutes=total_flight_time)
+            if 'day' not in str(total_flight_time):
+                total_flight_time = datetime.strptime(str(total_flight_time), "%H:%M:%S").strftime('%H:%M')
+
+
+            total_layover_time = timedelta(minutes=total_layover_time)
+            if 'day' not in str(total_layover_time):
+                total_layover_time = datetime.strptime(str(total_layover_time), "%H:%M:%S").strftime('%H:%M')
+
+            _dict.update({
+                "distance": None,
+                "num_stops": stops,
+                "connections": connections,
+                "times": {'flight': str(total_flight_time), 'layover': str(total_layover_time)},
+                "site_key": request_data['site_key']
+            })
+
+            pricing_details = result_slice.get('pricingDetail', [])
+            for price_details in pricing_details:
+                final_sub_dict = copy.deepcopy(_dict)
+                if price_details.get('productAvailable', False):
+                    cabin = price_details.get('productType', '')
                     if cabin in cabin_classes:
-                        productBenifits = price.get('productBenefits', '')
-                        miles = price.get('perPassengerAwardPoints', 0)
-                        final_sub_dict["redemptions"] = [{"miles": miles, "program": "American Airlines AAdvantage"}]
-                        final_sub_dict["award_type"] = productBenifits
+                        product_benifits = price_details.get('productBenefits', '')
+                        miles = price_details.get('perPassengerAwardPoints', 0)
+                        currency = price_details.get('perPassengerDisplayTotal', {}).get('currency', '')
+                        taxes = price_details.get('perPassengerDisplayTotal').get('amount', '')
+
                         for connection in final_sub_dict["connections"]:
                             model = connection.get('aircraft', {}).get('model', '')
-                            connection["fare_class"] = fare_classes.get(model, {}).get(cabin, '')
-                            connection["cabin"] = cabinMapping[cabin]
-                        currency = price.get('perPassengerDisplayTotal', {}).get('currency', '')
-                        taxes = price.get('perPassengerDisplayTotal').get('amount', '')
-                        final_sub_dict["payments"] = [{"currency": currency, "taxes": taxes, "fees":None}]
-                        final_dict.append(final_sub_dict)
-                        webSpecial.append(price.get('productType'))
 
-    return final_dict, errorMsg
+                            connection.update({
+                                "fare_class": fare_classes.get(model, {}).get(cabin, ''),
+                                "cabin": cabin_mapping.get(cabin, '')
+                            })
+
+                        final_sub_dict.update({
+                            "redemptions": [{"miles": miles, "program": "American AAdvantage"}],
+                            "award_type": product_benifits,
+                            "payments": [{"currency": currency, "taxes": taxes, "fees": None}]
+                        })
+                        final_dict.append(final_sub_dict)
+
+    return final_dict, error_msg
