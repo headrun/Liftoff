@@ -172,8 +172,8 @@ def americanAirlines(request_data):
                 if price_details.get('productAvailable', False):
                     cabin = price_details.get('productType', '')
                     if cabin in cabin_classes:
-                        cabin = cabin_mapping.get(cabin, '')
-                        award_type = award_mapping.get(cabin, '')
+                        map_cabin = cabin_mapping.get(cabin, '')
+                        award_type = award_mapping.get(map_cabin, '')
                         miles = price_details.get('perPassengerAwardPoints', 0)
                         currency = price_details.get('perPassengerDisplayTotal', {}).get('currency', '')
                         taxes = price_details.get('perPassengerDisplayTotal').get('amount', '')
@@ -183,7 +183,7 @@ def americanAirlines(request_data):
 
                             connection.update({
                                 "fare_class": fare_classes.get(model, {}).get(cabin, ''),
-                                "cabin": cabin_mapping.get(cabin, '')
+                                "cabin": map_cabin
                             })
 
                         final_sub_dict.update({
