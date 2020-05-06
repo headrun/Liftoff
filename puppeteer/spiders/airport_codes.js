@@ -4,7 +4,7 @@ module.exports = { airportsCode }
 async function airportsCode(request_data){
     var data
     await puppeteer.use(StealthPlugin())
-    await puppeteer.launch({executablePath: '/usr/bin/google-chrome', headless: false }).then(async browser => {
+    await puppeteer.launch({executablePath: '/usr/bin/google-chrome', headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox','--lang=en-GB'] }).then(async browser => {
         const page = await browser.newPage()
         await page.goto('https://www.airfrance.us/')
         const navigationPromise = page.waitForNavigation()
