@@ -2,6 +2,8 @@
 const express = require('express');
 const bodyParser =require("body-parser");
 const fun = require('./spiders/airfrance')
+const airport_code = require('./spiders/airport_codes')
+const timezone_code = require('./spiders/timeZone')
 const server = express();
 //const port = 3000;
 server.use(bodyParser.json());
@@ -20,6 +22,14 @@ server.use(function (req, res, next) {
 });
 server.post('/airfrance', async function(req, res){
     let responce= await fun.franceAirline(req.body)
+    res.send(responce)
+});
+server.post('/aiportCode', async function(req, res){
+    let responce= await airport_code.airportsCode(req.body)
+    res.send(responce)
+});
+server.post('/timeZone', async function(req, res){
+    let responce= await timezone_code.timeZoneCode(req.body)
     res.send(responce)
 });
 const PORT = process.env.PORT || 5000;

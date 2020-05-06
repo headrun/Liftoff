@@ -26,25 +26,31 @@ def vigranAtlantic(request_data):
         tripStatus = 'ROUND_TRIP'
     else:
         arrivalDate = None
-    
      
     request_cabins = data.get('cabins', [])
     cabin_classes = []
+    cabin_hierarchy = []
+    
     cabinMapping = {'Economy':'Economy','Premium':'Premium Economy','Main Cabin':'Economy','Business Class':'Business','First Class':'First Class','Upper Class':'Business','Delta One':'Business'}
     for cabin in request_cabins:
-        if cabin.lower() == "business":
-            cabin_classes.append("Upper Class")
-            cabin_classes.append("Business Class")
+        if cabin.lower() == "first_class":
+            cabin_classes.append("First Class")
             cabin_classes.append("Delta One")
+            cabin_classes.append("Upper Class")
+            cabin_hierarchy = cabin_hierarchy + ["First Class","Business","Premium","Economy","Main Cabin"]
+        elif cabin.lower() == "business":
+            cabin_classes.append("Business Class")
+            cabin_hierarchy = cabin_hierarchy + ["Business", "Premium", "Economy","Main Cabin","Upper Class"]
         elif cabin.lower() == "premium_economy":
             cabin_classes.append("Premium")
+            cabin_hierarchy = cabin_hierarchy + ["Premium", "Economy","Main Cabin"]
         elif cabin.lower() == "economy":
             cabin_classes.append("Economy")
-            cabin_classes.append("Main Cabin")
-        elif cabin.lower() == "first_class":
-            cabin_classes.append("First Class")
-    cabin_classes = list(set(cabin_classes))
+            cabin_hierarchy = cabin_hierarchy + ["Economy","Main Cabin"]
     
+    cabin_classes = list(set(cabin_classes))
+    cabin_hierarchy = list(set(cabin_hierarchy))
+     
     maxStop = data.get('max_stops')
     cookies = {'_abck': _abck}
     headers = {
@@ -100,22 +106,7 @@ def vigranAtlantic(request_data):
     if error_msg:
         print(error_msg)
         return final_dict,error_msg
-    itinerary = data.get('itinerary',[])
-    for fare in itinerary:
-        fares = fare.get('fare','')
-        for flg_det in fares:
-            solutionId = flg_det.get('solutionId','')
-    data = {"bestFare":"VSLT","action":"findFlights","destinationAirportRadius":{"unit":"MI","measure":100},"deltaOnlySearch":False,"meetingEventCode":"","originAirportRadius":{"unit":"MI","measure":100},"passengers":[{"type":"ADT","count":request_data.get('passengers', 0)}],"searchType":"selectTripSearch","segments":[{"returnDate":arrivalDate,"departureDate":departureDate,"destination":''.join(request_data.get('arrivals', '')),"origin":''.join(request_data.get('departures', ''))}],"shopType":"MILES","tripType":tripStatus,"priceType":"Award","priceSchedule":"PRICE","awardTravel":True,"refundableFlightsOnly":False,"nonstopFlightsOnly":False,"datesFlexible":True,"flexCalendar":False,"flexAirport":False,"upgradeRequest":False,"pageName":"FLIGHT_SEARCH","cacheKey":"7c8728fc-cba5-4397-8f23-4992b0a947cb","requestPageNum":"1","sortableOptionId":"priceAward","selectedSolutions":[{"sliceIndex":1}],"actionType":"flexDateSearch","initialSearchBy":{"fareFamily":"VSLT","meetingEventCode":"","refundable":False,"flexAirport":False,"flexDate":True,"flexDaysWeeks":"FLEX_DAYS"},"vendorDetails":{},"currentSolution":{"solutionId":solutionId,"solutionIndex":0,"sliceIndex":1}}
-    res = requests.post('https://www.virginatlantic.com/shop/ow/search', headers=headers, cookies=cookies,data=json.dumps(data))
-    data1 = json.loads(res.text)
-    tax_fee = None
-    taxes = data1.get('selectedItinerary',[])
-    for tax in taxes:
-        fares1 = tax.get('fare','')
-        for det in fares1:
-            fees = det.get('tax',{})
-            for fee in fees:
-                tax_fee = fee.get('cost',{}).get('currency',{}).get('amount','')
+
     data = json.loads(response.text)
     itinerary = data.get('itinerary',[])
     for fare in itinerary:
@@ -188,9 +179,12 @@ def vigranAtlantic(request_data):
                             layover = None
                         sample_dict['times'] = {'flight':minit, 'layover': layover}                  
                     totalAirTime = str(segment.get('totalAirTime',{}).get('hour','')) + ':' + str(segment.get('totalAirTime',{}).get('minute',''))
-                    layoverTimes = str(segment.get('layover',{}).get('duration',{}).get('hour','')) + ':'+ str(segment.get('layover',{}).get('duration',{}).get('minute',''))
-                    if layoverTimes == ':':
+                    layoverTime = str(segment.get('layover',{}).get('duration',{}).get('hour','')) + ':'+ str(segment.get('layover',{}).get('duration',{}).get('minute',''))
+                    try:
+                        layoverTimes = datetime.strptime(layoverTime,'%H:%M').strftime('%H:%M')
+                    except:
                         layoverTimes = None
+                    
                     airlineDetails["times"] = {'flight': totalAirTime, 'layover': layoverTimes} 
                     #sample_dict["site_key"] = 'VS'    
                     sample_dict["site_key"] = request_data['site_key']
@@ -230,22 +224,25 @@ def vigranAtlantic(request_data):
                 final_sub_dict["connections"][index]["fare_class"] = fare_class
                 index = index +1
             final_sub_dict["redemptions"] = [{"miles": miles, "program":"Virgin Atlantic"}]
-            final_sub_dict["payments"] = [{"currency": currency, "taxes": taxes, "fees":tax_fee}]
+            final_sub_dict["payments"] = [{"currency": currency, "taxes": taxes, "fees":None}]
             if len(cabinname)!=0:
-                cabin_available = False
                 for element in final_sub_dict["connections"]:
                     nameOfCabin = element["cabin"]
-                    result_cabin = any(ele in nameOfCabin for ele in cabin_classes)
-                    result_cabin_name = ''.join([ele for ele in cabin_classes if(ele.lower() in nameOfCabin.lower())])
+                    result_cabin = any(ele in nameOfCabin.lower() for ele in cabin_classes)
+                    result_cabin_name = ''.join([ele for ele in cabin_classes if (ele.lower() in element["cabin"].lower())])     
                     if result_cabin:
                         element["cabin"] = cabinMapping[result_cabin_name]
+                    
+                cabin_available = False
+                hierarchy_valid = True
+                for ele_cab in final_sub_dict["connections"]: 
+                    result = any(ele.lower() in ele_cab["cabin"].lower() for ele in cabin_classes)
+                    if result:
                         cabin_available = True
-                if cabin_available:
+                    cabin_hierarchy_valid = any(ele.lower() in ele_cab["cabin"].lower() for ele in cabin_hierarchy)
+                    if not cabin_hierarchy_valid:
+                        hierarchy_valid = False
+                if cabin_available or hierarchy_valid:
                     final_dict.append(final_sub_dict)
-    return final_dict, error_msg
 
-        
-
-        
-            
-            
+    return final_dict, error_msg 
