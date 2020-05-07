@@ -114,7 +114,7 @@ def airFrance(request_data):
                 }
                 sub_dict["cabin"]=''.join(flight.xpath('div[5]/span[2]//text()').extract()).replace('N/A','').strip()
                 sub_dict["flight"]=[flight_number]
-                sub_dict["times"]={"flight":0.0,"layover":0.0}
+                sub_dict["times"]={"flight":0.0,"layover":None}
                 sub_dict["redemptions"]=None
                 sub_dict["payments"]=None
                 sub_dict["tickets"]=None
@@ -149,13 +149,14 @@ def airFrance(request_data):
                                 airport_departure_city = con['departure']["airport"]
                             available = False
                             for key,value in airport_code.items():
-                                if airport_departure_city in value["city"]:
-                                    available = True
-                                    con['departure']["airport"] = key
-                                    con['departure']["timezone"] = value["timeZone"]
+                                if airport_departure_city.lower() in value["city"].lower():
+                                    if airport_departure_name.lower() in value["name"].lower():
+                                        available = True
+                                        con['departure']["airport"] = key
+                                        con['departure']["timezone"] = value["timeZone"]
                             if not available:
                                 for key,value in airport_code.items():
-                                    if airport_departure_name in value["name"]:
+                                    if airport_departure_name.lower() in value["name"].lower():
                                         con['departure']["airport"] = key
                                         con['departure']["timezone"] = value["timeZone"]
                         for con in final_sub_dict["connections"]:
@@ -167,13 +168,14 @@ def airFrance(request_data):
                                 airport_arrival_city = con['arrival']["airport"]
                             available = False
                             for key,value in airport_code.items():
-                                if airport_arrival_city in value["city"]:
-                                    available = True
-                                    con['arrival']["airport"] = key
-                                    con['arrival']["timezone"] = value["timeZone"]
+                                if airport_arrival_city.lower() in value["city"].lower():
+                                    if airport_arrival_name.lower() in value["name"].lower():
+                                        available = True
+                                        con['arrival']["airport"] = key
+                                        con['arrival']["timezone"] = value["timeZone"]
                             if not available:
                                 for key,value in airport_code.items():
-                                    if airport_arrival_name in value["name"]:
+                                    if airport_arrival_name.lower() in value["name"].lower():
                                         con['arrival']["airport"] = key
                                         con['arrival']["timezone"] = value["timeZone"]
 
@@ -248,10 +250,12 @@ def airFrance(request_data):
                         for (conn, layover) in zip(final_sub_dict["connections"][:-1], layourTimeDict):
                             conn["times"]["layover"] = layover
                             totalLayoverTime = totalLayoverTime + int(layover.split(':')[0])*60+int(layover.split(':')[1])
-                        final_sub_dict["times"] = {
-                            "flight": str(totalFlightTime // 60).zfill(2) + ':' + str(totalFlightTime % 60).zfill(2),
-                            'layover': str(totalLayoverTime // 60).zfill(2) + ':' + str(totalLayoverTime % 60).zfill(2)
-                        }
+                        final_sub_dict["times"] = {"flight":None,"layover":None}
+                        if totalLayoverTime != 0:
+                            final_sub_dict["times"]["layover"] = str(totalLayoverTime // 60).zfill(2) + ':' + str(totalLayoverTime % 60).zfill(2)
+                        else:
+                            final_sub_dict["times"]["layover"] = None
+                        final_sub_dict["times"]["flight"] = str(totalFlightTime // 60).zfill(2) + ':' + str(totalFlightTime % 60).zfill(2)
                         final_sub_dict["award_type"] = awardType[:-1]
                         cabinValid = False
                         hierarchy_valid = True
@@ -271,5 +275,4 @@ def find_city(query):
         for city in cities:
             if query in city:
                 yield timezone(city)
-
 

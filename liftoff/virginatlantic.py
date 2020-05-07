@@ -26,31 +26,31 @@ def vigranAtlantic(request_data):
         tripStatus = 'ROUND_TRIP'
     else:
         arrivalDate = None
+    
      
     request_cabins = data.get('cabins', [])
     cabin_classes = []
     cabin_hierarchy = []
-    
-    cabinMapping = {'Economy':'Economy','Premium':'Premium Economy','Main Cabin':'Economy','Business Class':'Business','First Class':'First Class','Upper Class':'Business','Delta One':'Business'}
+    cabinMapping = {'Economy':'Economy','Premium':'Premium Economy','Main Cabin':'Economy','Business Class':'Business','First Class':'First Class','Upper Class':'Business','Delta One':'First Class'}
     for cabin in request_cabins:
         if cabin.lower() == "first_class":
             cabin_classes.append("First Class")
             cabin_classes.append("Delta One")
+            cabin_hierarchy = cabin_hierarchy + ["First Class","Business","Premium Economy","Economy","Main Cabin","Upper Class","Delta One"]
+        if cabin.lower() == "business":
             cabin_classes.append("Upper Class")
-            cabin_hierarchy = cabin_hierarchy + ["First Class","Business","Premium","Economy","Main Cabin"]
-        elif cabin.lower() == "business":
             cabin_classes.append("Business Class")
-            cabin_hierarchy = cabin_hierarchy + ["Business", "Premium", "Economy","Main Cabin","Upper Class"]
+            cabin_hierarchy = cabin_hierarchy + ["Business","Premium Economy","Economy","Main Cabin","Upper Class"]
         elif cabin.lower() == "premium_economy":
             cabin_classes.append("Premium")
-            cabin_hierarchy = cabin_hierarchy + ["Premium", "Economy","Main Cabin"]
+            cabin_hierarchy = cabin_hierarchy + ["Premium Economy", "Economy","Main Cabin"]
         elif cabin.lower() == "economy":
             cabin_classes.append("Economy")
+            cabin_classes.append("Main Cabin")
             cabin_hierarchy = cabin_hierarchy + ["Economy","Main Cabin"]
-    
     cabin_classes = list(set(cabin_classes))
     cabin_hierarchy = list(set(cabin_hierarchy))
-     
+    
     maxStop = data.get('max_stops')
     cookies = {'_abck': _abck}
     headers = {
@@ -106,7 +106,6 @@ def vigranAtlantic(request_data):
     if error_msg:
         print(error_msg)
         return final_dict,error_msg
-
     data = json.loads(response.text)
     itinerary = data.get('itinerary',[])
     for fare in itinerary:
@@ -173,19 +172,23 @@ def vigranAtlantic(request_data):
                         airlineDetails["payments"] = None
                         airlineDetails["tickets"] = None
                         sample_dict["connections"].append(airlineDetails)
-                        try:
-                            layover = sample_dict["connections"][0].get('times',{}).get('layover','')
-                        except:
+                        layover = sample_dict["connections"][0].get('times',{}).get('layover','')
+                        if layover == '':
                             layover = None
                         sample_dict['times'] = {'flight':minit, 'layover': layover}                  
                     totalAirTime = str(segment.get('totalAirTime',{}).get('hour','')) + ':' + str(segment.get('totalAirTime',{}).get('minute',''))
+                    try:
+                        totalAirTimes = datetime.strptime(totalAirTime,'%H:%M').strftime('%H:%M')
+                    except:
+                        layoverTimes = None
+
                     layoverTime = str(segment.get('layover',{}).get('duration',{}).get('hour','')) + ':'+ str(segment.get('layover',{}).get('duration',{}).get('minute',''))
                     try:
                         layoverTimes = datetime.strptime(layoverTime,'%H:%M').strftime('%H:%M')
                     except:
                         layoverTimes = None
-                    
-                    airlineDetails["times"] = {'flight': totalAirTime, 'layover': layoverTimes} 
+
+                    airlineDetails["times"] = {'flight': totalAirTimes, 'layover': layoverTimes} 
                     #sample_dict["site_key"] = 'VS'    
                     sample_dict["site_key"] = request_data['site_key']
                 
@@ -226,23 +229,21 @@ def vigranAtlantic(request_data):
             final_sub_dict["redemptions"] = [{"miles": miles, "program":"Virgin Atlantic"}]
             final_sub_dict["payments"] = [{"currency": currency, "taxes": taxes, "fees":None}]
             if len(cabinname)!=0:
+                cabin_available = False
                 for element in final_sub_dict["connections"]:
                     nameOfCabin = element["cabin"]
-                    result_cabin = any(ele in nameOfCabin.lower() for ele in cabin_classes)
-                    result_cabin_name = ''.join([ele for ele in cabin_classes if (ele.lower() in element["cabin"].lower())])     
+                    result_cabin = any(ele in nameOfCabin for ele in cabin_classes)
+                    result_cabin_name = ''.join([ele for ele in cabin_classes if(ele.lower() in nameOfCabin.lower())])
                     if result_cabin:
                         element["cabin"] = cabinMapping[result_cabin_name]
-                    
-                cabin_available = False
-                hierarchy_valid = True
-                for ele_cab in final_sub_dict["connections"]: 
-                    result = any(ele.lower() in ele_cab["cabin"].lower() for ele in cabin_classes)
-                    if result:
                         cabin_available = True
-                    cabin_hierarchy_valid = any(ele.lower() in ele_cab["cabin"].lower() for ele in cabin_hierarchy)
-                    if not cabin_hierarchy_valid:
-                        hierarchy_valid = False
-                if cabin_available or hierarchy_valid:
-                    final_dict.append(final_sub_dict)
+                if cabin_available:
+                    hierarchy_valid = True
+                    for element in final_sub_dict["connections"]:
+                        cabin_hierarchy_valid = any(ele.lower() in element["cabin"].lower() for ele in cabin_hierarchy)
+                        if not cabin_hierarchy_valid:
+                            hierarchy_valid = False
+                    if hierarchy_valid:
+                        final_dict.append(final_sub_dict)
 
-    return final_dict, error_msg 
+    return final_dict, error_msg          
