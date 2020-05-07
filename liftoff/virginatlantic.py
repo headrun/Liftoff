@@ -172,9 +172,8 @@ def vigranAtlantic(request_data):
                         airlineDetails["payments"] = None
                         airlineDetails["tickets"] = None
                         sample_dict["connections"].append(airlineDetails)
-                        try:
-                            layover = sample_dict["connections"][0].get('times',{}).get('layover','')
-                        except:
+                        layover = sample_dict["connections"][0].get('times',{}).get('layover','')
+                        if layover == '':
                             layover = None
                         sample_dict['times'] = {'flight':minit, 'layover': layover}                  
                     totalAirTime = str(segment.get('totalAirTime',{}).get('hour','')) + ':' + str(segment.get('totalAirTime',{}).get('minute',''))
