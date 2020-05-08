@@ -78,6 +78,7 @@ def DeltaSkyMiles(request_data):
             cabin_hierarchy = cabin_hierarchy + ["Economy","Main Cabin","Main","Classic","Basic"]
             
     cabin_classes = list(set(cabin_classes))
+    cabin_hierarchy = list(set(cabin_hierarchy))
 
     maxStop = request_data.get('max_stops')
     req_page = 0
