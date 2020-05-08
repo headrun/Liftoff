@@ -45,7 +45,8 @@ def DeltaSkyMiles(request_data):
                     'Business':'Business',
                     'Upper Class':'Business',
                     'First':'First Class',
-                    'Delta One':'First Class'}
+                    'Delta One':'First Class',
+                    'Premier':'First Class'}
 
     departureDate = request_data.get('departure_date', {}).get('when', '')
     arrivalDate = request_data.get('arrival_date', {}).get('when', '')
@@ -60,7 +61,8 @@ def DeltaSkyMiles(request_data):
         if cabin.lower() == "first_class":
             cabin_classes.append("First")
             cabin_classes.append("Delta One")
-            cabin_hierarchy = cabin_hierarchy + ["First Class","Premium Economy","Business","Economy","Main Cabin","Delta One","Classic","Basic","First","Upper Class"]
+            cabin_classes.append("Premier")
+            cabin_hierarchy = cabin_hierarchy + ["First Class","Premium Economy","Business","Economy","Main Cabin","Delta One","Classic","Basic","First","Upper Class","Premier"]
         elif cabin.lower() == "business":
             cabin_classes.append("Business")
             cabin_classes.append("Upper Class")
