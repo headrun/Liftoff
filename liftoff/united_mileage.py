@@ -5,7 +5,9 @@ import copy
 from datetime import datetime, timedelta
 import json
 import requests
+import re
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
+from settings import proxies
 
 def UnitedMileagePlus(request_data):
     final_dict = []
@@ -117,7 +119,7 @@ def UnitedMileagePlus(request_data):
             "Index": 2,
             "Origin": departureAirport,
         })
-    response = requests.post('https://www.united.com/ual/en/in/flight-search/book-a-flight/flightshopping/getflightresults/awd',headers=headers, cookies=cookies, data=json.dumps(data))
+    response = requests.post('https://www.united.com/ual/en/in/flight-search/book-a-flight/flightshopping/getflightresults/awd',headers=headers, cookies=cookies, data=json.dumps(data),proxies=proxies)
     res = json.loads(response.text)
     errorstatus = res.get('status', '')
     errorMsg = ''
@@ -145,10 +147,11 @@ def UnitedMileagePlus(request_data):
                 for segment in segments:
                     sub_dict = {}
                     flightDate = segment.get('FlightDate', '')
-                    sub_dict["departures"] = {"when": "", "airport": segment.get("Origin", '')}
-                    sub_dict["arrivals"] = {"when": "", "airport": segment.get("Destination", '')}
-                    sub_dict["airlines"] = segment.get('CarrierCode', '')
-                    sub_dict["flight"] = [segment.get('CarrierCode', '') + " " + segment.get('FlightNumber', '')]
+                    sub_dict["departure"] = {"when": "", "airport": segment.get("Origin", '')}
+                    sub_dict["arrival"] = {"when": "", "airport": segment.get("Destination", '')}
+                    sub_dict["flight"] = [segment.get('CarrierCode', '') + "" + segment.get('FlightNumber', '')]
+                    arriv =  sub_dict["flight"][0]
+                    sub_dict["airline"] = ''.join(re.findall('\D+',arriv))
                     sub_dict["distance"] = None
                     aircraftModel = segment.get('EquipmentDescription', '')
                     try:
@@ -174,21 +177,23 @@ def UnitedMileagePlus(request_data):
                         cabin_connection = product.get('ProductTypeDescription', '')
                         fareclass_mapping[cabin_connection.strip()].append(fareclass_connection)
                     sample_dict["connections"].append(sub_dict)
-                getdateTime = flight.get('Connections', [])
-                layoutTime = []
-                for date_element in getdateTime:
-                    dateTime.append({'departure': date_element.get('DepartDateTime', ''),
+                try:
+                    getdateTime = flight.get('Connections', [])
+                    layoutTime = []
+                    for date_element in getdateTime:
+                        dateTime.append({'departure': date_element.get('DepartDateTime', ''),
                                      'arrival': date_element.get('DestinationDateTime', ''),
                                      'flightTime': date_element.get('TravelMinutes', '')})
-                    layoutTime.append(date_element.get('ConnectTimeMinutes', ''))
+                        layoutTime.append(date_element.get('ConnectTimeMinutes', ''))
+                except:pass
                 sumOfFlightTimes = 0
                 sumOfLayoverTimes = 0
                 for (con, dateTime) in zip(sample_dict["connections"], dateTime):
-                    con["departures"]["when"] = datetime.strptime(dateTime["departure"], "%m/%d/%Y %H:%M").strftime('%Y-%m-%dT%H:%M')
-                    con["arrivals"]["when"] = datetime.strptime(dateTime["arrival"], "%m/%d/%Y %H:%M").strftime('%Y-%m-%dT%H:%M')
+                    con["departure"]["when"] = datetime.strptime(dateTime["departure"], "%m/%d/%Y %H:%M").strftime('%Y-%m-%dT%H:%M')
+                    con["arrival"]["when"] = datetime.strptime(dateTime["arrival"], "%m/%d/%Y %H:%M").strftime('%Y-%m-%dT%H:%M')
                     con["times"]["flight"] = str(dateTime["flightTime"]//60).zfill(2) + ':' +str(dateTime["flightTime"]%60).zfill(2)
                     sumOfFlightTimes = sumOfFlightTimes + dateTime["flightTime"]
-                for (con, layout) in zip(sample_dict["connections"][1:], layoutTime):
+                for (con, layout) in zip(sample_dict["connections"][0:], layoutTime):
                     sumOfLayoverTimes = sumOfLayoverTimes + layout
                     con["times"]["layover"] = str(layout // 60).zfill(2) + ':' + str(layout % 60).zfill(2)
                 fareDetails = flight.get('Products', [])
@@ -207,6 +212,8 @@ def UnitedMileagePlus(request_data):
 
                             final_sub_dict["distance"] = None
                             final_sub_dict["times"] = {"flight": str(sumOfFlightTimes//60).zfill(2) + ':' +str(sumOfFlightTimes%60).zfill(2), "layover": str(sumOfLayoverTimes//60).zfill(2) + ':' +str(sumOfLayoverTimes%60).zfill(2)}
+                            if final_sub_dict["times"]["layover"] == '00:00' :
+                                final_sub_dict["times"]["layover"] = None
                             miles_details = fare.get('Prices', [])
                             tax_details = fare.get('TaxAndFees')
                             miles, taxandfees, currency = 0, 0.0, "USD"
@@ -221,5 +228,3 @@ def UnitedMileagePlus(request_data):
                             final_sub_dict["award_type"] = cabin
                             final_dict.append(final_sub_dict)
     return final_dict,errorMsg
-
-
