@@ -2,10 +2,10 @@ from selenium import webdriver
 from pyvirtualdisplay import Display
 from time import sleep, strptime
 import copy
+import re
 from datetime import datetime, timedelta
 import json
 import requests
-import re
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from settings import proxies
 
@@ -150,7 +150,7 @@ def UnitedMileagePlus(request_data):
                     sub_dict["departure"] = {"when": "", "airport": segment.get("Origin", '')}
                     sub_dict["arrival"] = {"when": "", "airport": segment.get("Destination", '')}
                     sub_dict["flight"] = [segment.get('CarrierCode', '') + "" + segment.get('FlightNumber', '')]
-                    arriv =  sub_dict["flight"][0]
+                    arriv = sub_dict["flight"][0]
                     sub_dict["airline"] = ''.join(re.findall('\D+',arriv))
                     sub_dict["distance"] = None
                     aircraftModel = segment.get('EquipmentDescription', '')
@@ -170,7 +170,8 @@ def UnitedMileagePlus(request_data):
                         flightTime = flightDate.split(' ')[1]
                     except:
                         flightTime = ''
-                    sub_dict["times"] = {'flight': "", 'layover': None}
+                    sub_dict["times"] = {'flight': "",'layover':None}
+                
                     product_data = segment.get('Products', '')
                     for product in product_data:
                         fareclass_connection = product.get('BookingCode', '')
@@ -212,8 +213,8 @@ def UnitedMileagePlus(request_data):
 
                             final_sub_dict["distance"] = None
                             final_sub_dict["times"] = {"flight": str(sumOfFlightTimes//60).zfill(2) + ':' +str(sumOfFlightTimes%60).zfill(2), "layover": str(sumOfLayoverTimes//60).zfill(2) + ':' +str(sumOfLayoverTimes%60).zfill(2)}
-                            if final_sub_dict["times"]["layover"] == '00:00' :
-                                final_sub_dict["times"]["layover"] = None
+                            if final_sub_dict["times"]["layover"] == "00:00":
+                               final_sub_dict["times"]["layover"] == None
                             miles_details = fare.get('Prices', [])
                             tax_details = fare.get('TaxAndFees')
                             miles, taxandfees, currency = 0, 0.0, "USD"
@@ -223,7 +224,7 @@ def UnitedMileagePlus(request_data):
                                 taxandfees = tax_details.get("Amount", 0.0)
                                 currency = tax_details.get("Currency", '')
                             final_sub_dict["redemptions"] = [{"miles": miles, "program": "MileagePlus"}]
-                            final_sub_dict["payments"] = [{"currency": currency, "taxes": taxandfees, "fees": taxandfees}]
+                            final_sub_dict["payments"] = [{"currency": currency, "taxes": taxandfees, "fees": None}]
                             final_sub_dict["site_key"] = request_data['site_key']
                             final_sub_dict["award_type"] = cabin
                             final_dict.append(final_sub_dict)
