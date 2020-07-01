@@ -79,7 +79,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME':'liftoff',
         'USER': 'root',
-        'PASSWORD': '942beedaf41e5f1ea97384974647f061@$XIT',
+        'PASSWORD': 'Air@123#',
     }
 }
 
