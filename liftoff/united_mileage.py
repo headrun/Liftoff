@@ -1,13 +1,13 @@
+import re
+import copy
+import json
+from time import sleep, strptime
+from datetime import datetime, timedelta
 from selenium import webdriver
 from pyvirtualdisplay import Display
-from time import sleep, strptime
-import copy
-import re
-from datetime import datetime, timedelta
-import json
 import requests
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
-from settings import proxies
+from liftoff.settings import proxies
 
 def UnitedMileagePlus(request_data):
     final_dict = []
@@ -119,7 +119,7 @@ def UnitedMileagePlus(request_data):
             "Index": 2,
             "Origin": departureAirport,
         })
-    response = requests.post('https://www.united.com/ual/en/in/flight-search/book-a-flight/flightshopping/getflightresults/awd',headers=headers, cookies=cookies, data=json.dumps(data),proxies=proxies)
+    response = requests.post('https://www.united.com/ual/en/in/flight-search/book-a-flight/flightshopping/getflightresults/awd', headers=headers, cookies=cookies, data=json.dumps(data)) #proxies=proxies)
     res = json.loads(response.text)
     errorstatus = res.get('status', '')
     errorMsg = ''
@@ -136,14 +136,15 @@ def UnitedMileagePlus(request_data):
             sample_dict["num_stops"] = flight.get('StopsandConnections', 0)
             if sample_dict["num_stops"] <= max_request_stops:
                 sample_dict["connections"] = []
-                dateTime.append({'departure': flight.get('DepartDateTime', ''), 'arrival': flight.get('DestinationDateTime', ''),'flightTime': flight.get('TravelMinutes', '')})
+                dateTime.append({'departure': flight.get('DepartDateTime', ''), 'arrival': flight.get('DestinationDateTime', ''), 'flightTime': flight.get('TravelMinutes', '')})
                 departureDateTime = flight.get('DepartDateTime', '')
                 arrivalDateTime = flight.get('DestinationDateTime', '')
                 flightsegment = flight['FlightSegmentJson']
                 flighttimes = flight.get('TravelMinutes', '')
                 segments = json.loads(flightsegment)
                 fareclass_mapping = {"First Saver Award": [], "Business Saver Award": [], "Business Everyday Award": [],
-                                     "Premium Economy (lowest award)": [], "Economy (lowest award)": []}
+                                     "Premium Economy (lowest award)": [], "Economy (lowest award)": [], "Business/First Saver Award" :[],
+                                     "Business/First Everyday Award": []}
                 for segment in segments:
                     sub_dict = {}
                     flightDate = segment.get('FlightDate', '')
@@ -151,7 +152,7 @@ def UnitedMileagePlus(request_data):
                     sub_dict["arrival"] = {"when": "", "airport": segment.get("Destination", '')}
                     sub_dict["flight"] = [segment.get('CarrierCode', '') + "" + segment.get('FlightNumber', '')]
                     arriv = sub_dict["flight"][0]
-                    sub_dict["airline"] = ''.join(re.findall('\D+',arriv))
+                    sub_dict["airline"] = ''.join(re.findall('\D+', arriv))
                     sub_dict["distance"] = None
                     aircraftModel = segment.get('EquipmentDescription', '')
                     try:
@@ -170,7 +171,7 @@ def UnitedMileagePlus(request_data):
                         flightTime = flightDate.split(' ')[1]
                     except:
                         flightTime = ''
-                    sub_dict["times"] = {'flight': "",'layover':None}
+                    sub_dict["times"] = {'flight': "", 'layover':None}
                 
                     product_data = segment.get('Products', '')
                     for product in product_data:
@@ -183,10 +184,10 @@ def UnitedMileagePlus(request_data):
                     layoutTime = []
                     for date_element in getdateTime:
                         dateTime.append({'departure': date_element.get('DepartDateTime', ''),
-                                     'arrival': date_element.get('DestinationDateTime', ''),
-                                     'flightTime': date_element.get('TravelMinutes', '')})
+                                         'arrival': date_element.get('DestinationDateTime', ''),
+                                         'flightTime': date_element.get('TravelMinutes', '')})
                         layoutTime.append(date_element.get('ConnectTimeMinutes', ''))
-                except:pass
+                except: pass
                 sumOfFlightTimes = 0
                 sumOfLayoverTimes = 0
                 for (con, dateTime) in zip(sample_dict["connections"], dateTime):
@@ -208,13 +209,13 @@ def UnitedMileagePlus(request_data):
                         if cabin.strip() in cabin_classes:
                             for con in final_sub_dict["connections"]:
                                 con["cabin"] = cabin_mapping[cabin.strip()]
-                            for (con, fare_class_name) in zip(final_sub_dict["connections"],fareclass_mapping[cabin.strip()]):
+                            for (con, fare_class_name) in zip(final_sub_dict["connections"], fareclass_mapping[cabin.strip()]):
                                 con["fare_class"] = fare_class_name
 
                             final_sub_dict["distance"] = None
                             final_sub_dict["times"] = {"flight": str(sumOfFlightTimes//60).zfill(2) + ':' +str(sumOfFlightTimes%60).zfill(2), "layover": str(sumOfLayoverTimes//60).zfill(2) + ':' +str(sumOfLayoverTimes%60).zfill(2)}
                             if final_sub_dict["times"]["layover"] == "00:00":
-                               final_sub_dict["times"]["layover"] == None
+                                final_sub_dict["times"]["layover"] == None
                             miles_details = fare.get('Prices', [])
                             tax_details = fare.get('TaxAndFees')
                             miles, taxandfees, currency = 0, 0.0, "USD"
@@ -226,6 +227,9 @@ def UnitedMileagePlus(request_data):
                             final_sub_dict["redemptions"] = [{"miles": miles, "program": "MileagePlus"}]
                             final_sub_dict["payments"] = [{"currency": currency, "taxes": taxandfees, "fees": None}]
                             final_sub_dict["site_key"] = request_data['site_key']
+                            #sample_dict["site_key"] = 'UA'
                             final_sub_dict["award_type"] = cabin
                             final_dict.append(final_sub_dict)
-    return final_dict,errorMsg
+
+    return final_dict, errorMsg
+
