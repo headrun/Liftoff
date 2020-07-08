@@ -49,8 +49,7 @@ def airFrance(request_data):
     res = Selector(response)
     errorNode = ''.join(res.xpath('//div[contains(@class,"search__errors")]//text()').extract()).strip()
     if errorNode:
-        errorMsg = "No flights found"
-        return final_dict, errorMsg
+        return final_dict, errorNode
     num_stops = request_data.get('max_stops')
     cabin_mapping = {"Economy":"Economy","Premium Economy":"Premium Economy","Business":"Business","LA Premiere":"First Class"}
     request_cabins = request_data.get('cabins', [])
@@ -269,7 +268,11 @@ def airFrance(request_data):
                                 hierarchy_valid = False
                         if cabinValid and hierarchy_valid:
                             final_dict.append(final_sub_dict)
-    return final_dict,errorMsg
+    if len(final_dict) == 0:
+        errorMsg = "No flights found"
+        return final_dict,errorMsg
+    else:
+        return final_dict,errorMsg
 
 def find_city(query):
     for country, cities in country_timezones.items():
