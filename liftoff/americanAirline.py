@@ -182,5 +182,8 @@ def americanAirlines(request_data):
                             "payments": [{"currency": currency, "taxes": taxes, "fees": None}]
                         })
                         final_dict.append(final_sub_dict)
-
-    return final_dict, error_msg
+    if len(final_dict) == 0:
+        error_msg = "No flights found"
+        return final_dict, error_msg
+    else:
+        return final_dict, error_msg
