@@ -194,9 +194,10 @@ def vigranAtlantic(request_data):
                             lay_minute = str(sum(lay_hours)+hour)+":"+str(lay_minite1)
                         else:
                             lay_minite = str(sum(lay_hours))+":"+str(sum(lay_time))
-                        if lay_minite == '0:0':
-                            lay_minite = None
-                        sample_dict['times'] = {'flight':fight_time, 'layover': lay_minite}
+                        layover_time = datetime.strptime(lay_minite,'%H:%M').strftime('%H:%M')
+                        if layover_time == '00:00':
+                            layover_time = None
+                        sample_dict['times'] = {'flight':fight_time, 'layover': layover_time}
                         #sample_dict["site_key"] = 'VS' 
                         sample_dict["site_key"] = request_data['site_key']
                 
