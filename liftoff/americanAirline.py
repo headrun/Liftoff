@@ -123,14 +123,12 @@ def americanAirlines(request_data):
                     flight_time = leg.get('durationInMinutes', '00:00')
                     if ':' not in str(flight_time):
                         final_flight_times.append(flight_time)
-                        flight_time = timedelta(minutes=flight_time)
-                        flight_time = datetime.strptime(str(flight_time), "%H:%M:%S").strftime('%H:%M')
+                        flight_time = str(flight_time // 60).zfill(2) + ':' + str(flight_time % 60).zfill(2)
 
                     layover_time = leg.get('connectionTimeInMinutes', '00:00')
                     if ':' not in str(layover_time):
                         final_layover_times.append(layover_time)
-                        layover_time = timedelta(minutes=layover_time)
-                        layover_time = datetime.strptime(str(layover_time), "%H:%M:%S").strftime('%H:%M')
+                        layover_time = str(layover_time // 60).zfill(2) + ':' + str(layover_time % 60).zfill(2)
 
                 airline_details.update({
                     "airline": airline,
@@ -148,16 +146,8 @@ def americanAirlines(request_data):
 
             total_layover_time = sum(final_layover_times)
             total_flight_time = total_duration - total_layover_time
-
-            total_flight_time = timedelta(minutes=total_flight_time)
-            if 'day' not in str(total_flight_time):
-                total_flight_time = datetime.strptime(str(total_flight_time), "%H:%M:%S").strftime('%H:%M')
-
-
-            total_layover_time = timedelta(minutes=total_layover_time)
-            if 'day' not in str(total_layover_time):
-                total_layover_time = datetime.strptime(str(total_layover_time), "%H:%M:%S").strftime('%H:%M')
-
+            total_layover_time = str(total_layover_time // 60).zfill(2) + ':' + str(total_layover_time % 60).zfill(2)
+            total_flight_time = str(total_flight_time // 60).zfill(2) + ':' + str(total_flight_time % 60).zfill(2)
             _dict.update({
                 "distance": None,
                 "num_stops": stops,
