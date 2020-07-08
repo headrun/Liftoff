@@ -44,6 +44,10 @@ def runscraper(request):
                 description = "invalid airlines"
                 res_status = HTTP_400_BAD_REQUEST
 
+            elif error_message == "No flights found":
+                status = "OK"
+                description = "No flights found"
+
             else:
                 status = "Error"
                 description = "Temporarily resource not available"
