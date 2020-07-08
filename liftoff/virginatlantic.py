@@ -158,7 +158,7 @@ def vigranAtlantic(request_data):
                         time.append(minuts)
                         minit = str(sum(tot_time))+":"+str(sum(time))
                         minite = sum(time)
-                        if minite > 60:
+                        if minite >= 60:
                             hour = 1
                             minite1 = minite - 60
                             minit = str(sum(tot_time)+hour)+":"+str(minite1)
@@ -188,7 +188,7 @@ def vigranAtlantic(request_data):
                         lay_time.append(lay_minut)
                         lay_minite = str(sum(lay_hours))+":"+str(sum(lay_time))
                         lay_minute = sum(lay_time)
-                        if lay_minute > 60:
+                        if lay_minute >= 60:
                             hour = 1
                             lay_minite1 = minite - 60
                             lay_minute = str(sum(lay_hours)+hour)+":"+str(lay_minite1)
