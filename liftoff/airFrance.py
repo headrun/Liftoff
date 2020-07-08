@@ -49,7 +49,8 @@ def airFrance(request_data):
     res = Selector(response)
     errorNode = ''.join(res.xpath('//div[contains(@class,"search__errors")]//text()').extract()).strip()
     if errorNode:
-        return final_dict,errorNode
+        errorMsg = "No flights found"
+        return final_dict, errorMsg
     num_stops = request_data.get('max_stops')
     cabin_mapping = {"Economy":"Economy","Premium Economy":"Premium Economy","Business":"Business","LA Premiere":"First Class"}
     request_cabins = request_data.get('cabins', [])
@@ -225,7 +226,7 @@ def airFrance(request_data):
                         final_sub_dict["payments"] = [{
                             "currency": cabin_dict["currency"],
                             "taxes": cabin_dict["taxes"],
-                            "fees": cabin_dict["taxes"]
+                            "fees": None
                         }]
                         final_sub_dict["site_key"] = request_data.get('site_key','')
                         awardType = ''
