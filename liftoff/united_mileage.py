@@ -133,6 +133,10 @@ def UnitedMileagePlus(request_data):
         for flight in flight_details:
             sample_dict = {}
             dateTime = []
+            flight_origin = flight.get('Origin','')
+            flight_destination = flight.get('Destination','')
+            if (flight_origin not in departureAirport) or (flight_destination not in arrivalAirport):
+                continue
             sample_dict["num_stops"] = flight.get('StopsandConnections', 0)
             if sample_dict["num_stops"] <= max_request_stops:
                 sample_dict["connections"] = []
@@ -230,6 +234,9 @@ def UnitedMileagePlus(request_data):
                             #sample_dict["site_key"] = 'UA'
                             final_sub_dict["award_type"] = cabin
                             final_dict.append(final_sub_dict)
-
-    return final_dict, errorMsg
+    if len(final_dict) == 0:
+        errorMsg = "No flights found"
+        return final_dict, errorMsg
+    else:
+        return final_dict, errorMsg
 
