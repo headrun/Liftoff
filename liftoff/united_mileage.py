@@ -134,7 +134,7 @@ def UnitedMileagePlus(request_data):
             sample_dict = {}
             dateTime = []
             flight_origin = flight.get('Origin','')
-            flight_destination = flight.get('Destination','')
+            flight_destination = flight.get('LastDestination',{}).get('Code','')
             if (flight_origin not in departureAirport) or (flight_destination not in arrivalAirport):
                 continue
             sample_dict["num_stops"] = flight.get('StopsandConnections', 0)
