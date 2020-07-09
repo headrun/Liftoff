@@ -140,7 +140,8 @@ def americanAirlines(request_data):
                     "times": {"flight": flight_time, "layover": layover_time},
                     "redemptions": None,
                     "payments": None,
-                    "tickets": None
+                    "tickets": None,
+                    "fare_class": fare_classes.get(aircraft_model_type, {}).get(cabin, '')
                 })
                 connections.append(airline_details)
 
@@ -172,7 +173,6 @@ def americanAirlines(request_data):
                             model = connection.get('aircraft', {}).get('model', '')
 
                             connection.update({
-                                "fare_class": fare_classes.get(model, {}).get(cabin, ''),
                                 "cabin": map_cabin
                             })
 
