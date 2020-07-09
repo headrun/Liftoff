@@ -5,7 +5,7 @@ from datetime import datetime
 import requests
 from selenium import webdriver
 from pyvirtualdisplay import Display
-from lifoff.settings import proxies
+from liftoff.settings import proxies
 
 
 def DeltaSkyMiles(request_data):
