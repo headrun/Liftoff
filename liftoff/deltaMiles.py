@@ -5,7 +5,7 @@ from datetime import datetime
 import requests
 from selenium import webdriver
 from pyvirtualdisplay import Display
-from liftoff.settings import proxies
+from lifoff.settings import proxies
 
 
 def DeltaSkyMiles(request_data):
@@ -13,12 +13,13 @@ def DeltaSkyMiles(request_data):
     display.start()
     driver = webdriver.Firefox()
     driver.get('https://www.delta.com')
-    _abck = ''.join([item.get('value') for item in driver.get_cookies() if item.get('name') == '_abck'])
-    display.stop()
-    driver.quit()
-     
+    #_abck = ''.join([item.get('value') for item in driver.get_cookies() if item.get('name') == '_abck'])
     cabin_classes = []
-    cookies = {'_abck':_abck}
+    cookies = {}
+    cookies_data = driver.get_cookies()
+    for ele in cookies_data:
+        cookies[ele["name"]] = ele["value"]
+    driver.quit()
     headers = {
         'authority': 'www.delta.com',
         'pragma': 'no-cache',
@@ -33,7 +34,7 @@ def DeltaSkyMiles(request_data):
         'origin': 'https://www.delta.com',
         'sec-fetch-site': 'same-origin',
         'sec-fetch-mode': 'cors',
-        'referer': 'https://www.delta.com/flight-search/search-results?cacheKeySuffix=ac8f3c85-3418-4a10-803f-fa21499d7a15',
+        'referer': 'https://www.delta.com/flight-search/search-results?cacheKeySuffix=dafba8ee-fb18-4e55-a3a4-859219dc567f',
         'accept-encoding': 'gzip, deflate, br',
         'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
         }
@@ -65,7 +66,7 @@ def DeltaSkyMiles(request_data):
             cabin_classes.append("First")
             cabin_classes.append("Delta One")
             cabin_classes.append("Premier")
-            cabin_hierarchy = cabin_hierarchy + ["First Class", "Premium Economy", "Business", "Economy", "Main Cabin", "Delta One", "Classic", "Basic", "First", "Upper Class", "Premier","Comfort+"]
+            cabin_hierarchy = cabin_hierarchy + ["First Class", "Premium Economy", "Business", "Economy", "Main Cabin", "Delta One", "Classic", "Basic", "First", "Upper Class", "Premier", "Comfort+"]
         elif cabin.lower() == "business":
             cabin_classes.append("Business")
             cabin_classes.append("Upper Class")
@@ -112,18 +113,22 @@ def DeltaSkyMiles(request_data):
                 "upgradeRequest":False,
                 "corporateSMTravelType":"Personal",
                 "pageName":"FLIGHT_SEARCH",
-                "cacheKey":"ac8f3c85-3418-4a10-803f-fa21499d7a15",
+                "cacheKey":"dafba8ee-fb18-4e55-a3a4-859219dc567f",
                 "actionType":"",
                 "initialSearchBy":{"fareFamily":"BE", "meetingEventCode":"", "refundable":False, "flexAirport":False, "flexDate":True, "flexDaysWeeks":"FLEX_DAYS"},
                 "sortableOptionId":"priceAward",
                 #"requestPageNum":"2"}
                 "requestPageNum":str(req_page)}
-        response = requests.post('https://www.delta.com/shop/ow/search', headers=headers, cookies=cookies, data=json.dumps(data), proxies=proxies)
+        if req_page > 1:
+            data.update({"filter":filters, "searchType":"resummarizePaging", "selectedSolutions":[]})
+            response = requests.post('https://www.delta.com/shop/ow/search', headers=headers, cookies=cookies, data=json.dumps(data), proxies=proxies)
+        else:
+            response = requests.post('https://www.delta.com/shop/ow/search', headers=headers, cookies=cookies, data=json.dumps(data), proxies=proxies)
         if response.status_code == 400:
             try:
                 data = json.loads(response.text)
                 error_msg = data.get('shoppingError', {}).get('error', {}).get('message', {}).get('message', '')
-            except:data, error_msg = '', ''
+            except: data, error_msg = '', ''
             if error_msg:
                 error_msg = 'invalid airlines'
                 return final_dict, error_msg
@@ -135,8 +140,9 @@ def DeltaSkyMiles(request_data):
             error_msg = 'No flights found'
             print(error_msg)
             return final_dict, error_msg
-
-        data = json.loads(response.text)
+        filters = data.get('filter', {})
+        if not filters:
+            filters = data.get('searchCriteria', {}).get('request', {}).get('filter', '')
         itinerary = data.get('itinerary', [])
         for fare in itinerary:
             Flag = True
@@ -223,7 +229,7 @@ def DeltaSkyMiles(request_data):
                                 lay_minute = str(sum(lay_hours)+hour)+":"+str(lay_minite1)
                             else:
                                 lay_minite = str(sum(lay_hours))+":"+str(sum(lay_time))
-                            layover_time = datetime.strptime(lay_minite,'%H:%M').strftime('%H:%M')
+                            layover_time = datetime.strptime(lay_minite, '%H:%M').strftime('%H:%M')
                             if layover_time == '00:00':
                                 layover_time = None
                             sample_dict['times'] = {'flight':flight_time, 'layover':layover_time}
@@ -289,5 +295,3 @@ def DeltaSkyMiles(request_data):
                         if hierarchy_valid:
                             final_dict.append(final_sub_dict)
     return final_dict, error_msg
-
-
