@@ -7,19 +7,15 @@ from selenium import webdriver
 from pyvirtualdisplay import Display
 from liftoff.settings import proxies
 
-
 def DeltaSkyMiles(request_data):
     display = Display(visible=0, size=(1400, 1000))
     display.start()
     driver = webdriver.Firefox()
     driver.get('https://www.delta.com')
-    #_abck = ''.join([item.get('value') for item in driver.get_cookies() if item.get('name') == '_abck'])
-    cabin_classes = []
-    cookies = {}
-    cookies_data = driver.get_cookies()
-    for ele in cookies_data:
-        cookies[ele["name"]] = ele["value"]
+    cookies = {item.get('name', ''): item.get('value', '') for item in driver.get_cookies() if item}
+    display.stop()
     driver.quit()
+
     headers = {
         'authority': 'www.delta.com',
         'pragma': 'no-cache',
@@ -59,7 +55,8 @@ def DeltaSkyMiles(request_data):
         tripStatus = 'ROUND_TRIP'
     else:
         arrivalDate = None
-    cabin_hierarchy = []
+
+    cabin_classes, cabin_hierarchy = [], []
     request_cabins = request_data.get('cabins', [])
     for cabin in request_cabins:
         if cabin.lower() == "first":
@@ -117,8 +114,8 @@ def DeltaSkyMiles(request_data):
                 "actionType":"",
                 "initialSearchBy":{"fareFamily":"BE", "meetingEventCode":"", "refundable":False, "flexAirport":False, "flexDate":True, "flexDaysWeeks":"FLEX_DAYS"},
                 "sortableOptionId":"priceAward",
-                #"requestPageNum":"2"}
                 "requestPageNum":str(req_page)}
+
         if req_page > 1:
             data.update({"filter":filters, "searchType":"resummarizePaging", "selectedSolutions":[]})
             response = requests.post('https://www.delta.com/shop/ow/search', headers=headers, cookies=cookies, data=json.dumps(data), proxies=proxies)
@@ -200,7 +197,8 @@ def DeltaSkyMiles(request_data):
                                 minit = str(sum(tot_time)+hour)+":"+str(minite1)
                             else:
                                 minit = str(sum(tot_time))+":"+str(sum(time))
-                            flight_time = datetime.strptime(minit, '%H:%M').strftime('%H:%M')
+                            try: flight_time = datetime.strptime(minit, '%H:%M').strftime('%H:%M')
+                            except: flight_time = minit
                             airlineDetails["redemptions"] = None
                             airlineDetails["payments"] = None
                             airlineDetails["tickets"] = None
@@ -222,14 +220,15 @@ def DeltaSkyMiles(request_data):
                             lay_hours.append(lay_hour)
                             lay_time.append(lay_minut)
                             lay_minite = str(sum(lay_hours))+":"+str(sum(lay_time))
-                            lay_minute = sum(lay_time)
-                            if lay_minute >= 60:
+                            lay_minutes = sum(lay_time)
+                            if lay_minutes >= 60:
                                 hour = 1
-                                lay_minite1 = minite - 60
-                                lay_minute = str(sum(lay_hours)+hour)+":"+str(lay_minite1)
+                                lay_minite1 = lay_minutes - 60
+                                lay_minite = str(sum(lay_hours)+hour)+":"+str(lay_minite1)
                             else:
                                 lay_minite = str(sum(lay_hours))+":"+str(sum(lay_time))
-                            layover_time = datetime.strptime(lay_minite, '%H:%M').strftime('%H:%M')
+                            try: layover_time = datetime.strptime(lay_minite, '%H:%M').strftime('%H:%M')
+                            except: layover_time = lay_minite                             
                             if layover_time == '00:00':
                                 layover_time = None
                             sample_dict['times'] = {'flight':flight_time, 'layover':layover_time}
@@ -295,3 +294,5 @@ def DeltaSkyMiles(request_data):
                         if hierarchy_valid:
                             final_dict.append(final_sub_dict)
     return final_dict, error_msg
+
+
