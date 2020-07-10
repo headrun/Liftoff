@@ -46,16 +46,16 @@ def UnitedMileagePlus(request_data):
     cabin_classes = list(set(cabin_classes))
 
     # login using selenium
-    options = FirefoxOptions()
-    options.add_argument("--headless")
-    driver = webdriver.Firefox(options=options)
+    display = Display(visible=0, size=(1400, 1000))
+    display.start()
+    driver = webdriver.Firefox()
     driver.get('https://www.united.com/en/us')
-
     # getting cookies from selenium driver
     cookies = {}
     cookies_data = driver.get_cookies()
     for ele in cookies_data:
         cookies[ele["name"]] = ele["value"]
+    display.stop()
     driver.quit()
     # python request for getting flight details
     headers = {
