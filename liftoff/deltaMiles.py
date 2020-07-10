@@ -12,13 +12,10 @@ def DeltaSkyMiles(request_data):
     display.start()
     driver = webdriver.Firefox()
     driver.get('https://www.delta.com')
-    #_abck = ''.join([item.get('value') for item in driver.get_cookies() if item.get('name') == '_abck'])
-    cabin_classes = []
-    cookies = {}
-    cookies_data = driver.get_cookies()
-    for ele in cookies_data:
-        cookies[ele["name"]] = ele["value"]
+    cookies = {item.get('name', ''): item.get('value', '') for item in driver.get_cookies() if item}
+    display.stop()
     driver.quit()
+
     headers = {
         'authority': 'www.delta.com',
         'pragma': 'no-cache',
@@ -58,7 +55,8 @@ def DeltaSkyMiles(request_data):
         tripStatus = 'ROUND_TRIP'
     else:
         arrivalDate = None
-    cabin_hierarchy = []
+
+    cabin_classes, cabin_hierarchy = [], []
     request_cabins = request_data.get('cabins', [])
     for cabin in request_cabins:
         if cabin.lower() == "first":
@@ -116,8 +114,8 @@ def DeltaSkyMiles(request_data):
                 "actionType":"",
                 "initialSearchBy":{"fareFamily":"BE", "meetingEventCode":"", "refundable":False, "flexAirport":False, "flexDate":True, "flexDaysWeeks":"FLEX_DAYS"},
                 "sortableOptionId":"priceAward",
-                #"requestPageNum":"2"}
                 "requestPageNum":str(req_page)}
+
         if req_page > 1:
             data.update({"filter":filters, "searchType":"resummarizePaging", "selectedSolutions":[]})
             response = requests.post('https://www.delta.com/shop/ow/search', headers=headers, cookies=cookies, data=json.dumps(data), proxies=proxies)
