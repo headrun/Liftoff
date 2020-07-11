@@ -1,102 +1,73 @@
 const puppeteer = require('puppeteer-extra')
 const StealthPlugin = require('puppeteer-extra-plugin-stealth')
-async function britishAirline(){
-    puppeteer.use(StealthPlugin())
-    puppeteer.launch({executablePath: '/usr/bin/google-chrome', headless: false }).then(async browser => {
+module.exports = { britishAirline }
+async function britishAirline(request_data){
+    var result
+    await puppeteer.use(StealthPlugin())
+    await puppeteer.launch({executablePath: '/usr/bin/google-chrome', headless: false }).then(async browser => {
         const page = await browser.newPage()
         await page.goto('https://www.britishairways.com/travel/home/execclub/_gf/en_us/')
         const navigationPromise = page.waitForNavigation()
-        await page.waitForSelector('#loginid')
-        await page.click('#loginid')
-        await page.type('#loginid', 'mattrobertsm@gmail.com');
-        await page.waitForSelector('#password')
-        await page.click('#password')
-        await page.type('#password', 'Roberts@11');
-        await page.click('#navLoginForm > div:nth-child(5) > div > button')
+        await page.waitForSelector('#membershipNumber')
+        await page.click('#membershipNumber')
+        await page.type('#membershipNumber', request_data.username);
+        await page.waitForSelector('#input_password')
+        await page.click('#input_password')
+        await page.type('#input_password', request_data.password);
+        await page.click('#ecuserlogbutton')
         await page.waitFor(5000)
         await page.goto('https://www.britishairways.com/travel/redeem/execclub/_gf/en_us?eId=106019&tab_selected=redeem&redemption_type=STD_RED')
         await page.waitForSelector('#departurePoint')
-        await page.$eval('#departurePoint', el => el.value = 'LAX');
+        let departure = request_data.departures
+        let arrival = request_data.arrivals
+        let departureDate = request_data.departureDate
+        await page.$eval('#departurePoint', (el, _uid) => el.value = _uid, departure);
         await page.waitForSelector('#destinationPoint')
-        await page.$eval('#destinationPoint', el => el.value = 'LHR');
-        await page.$eval('#departInputDate', el => el.value = '09/15/20');
+        await page.$eval('#destinationPoint', (el, _uid) => el.value = _uid, arrival);
+        await page.$eval('#departInputDate', (el, _uid) => el.value = _uid, departureDate);
         await page.waitForSelector('#oneWayBox')
         await page.click('#oneWayBox')
         await page.click('#submitBtn')
         await page.waitForSelector('#journey0RadioButton0CabinCodeM')
-
-
-        const flight_single_connection = await page.evaluate(() => Array.from(document.querySelectorAll('.flight-details')));
-        const connection_flight = await page.evaluate(() => Array.from(document.querySelectorAll('.connecting-flights')));
-        console.log(flight_single_connection.length);
-        console.log(connection_flight.length);
-        final_dict = []
-        const result = await page.evaluate(() => {
-        const flights = document.querySelectorAll('.flight-details');
-            return Array.from(flights, flight => {
-                let final_sub_dict = {}
-                let sample_dict = {}
-                sample_dict["departureDate"] = flight.querySelector(".departdate ").textContent;
-                sample_dict["departureTime"] = flight.querySelector(".departtime >strong").textContent;
-                sample_dict["departureAirport"] = flight.querySelector(".airportCodeLink").textContent;
-                sample_dict["arrivalDate"] = flight.querySelector(".arrivaldate ").textContent;
-                sample_dict["arrivalTime"] = flight.querySelector(".arrivaltime >strong").textContent;
-                sample_dict["arrivalAirport"] = flight.querySelector(".arrival >div >p >a").textContent;
-                sample_dict["jurneyTime"] = flight.querySelector(".journeyTime").textContent;
-                sample_dict["airline"] = flight.querySelector(".career-and-flight > a > span:nth-child(1)").textContent;
-                sample_dict["flightNumber"] = flight.querySelector(".career-and-flight > a > span:nth-child(2)").textContent;
-                sample_dict["model"] = flight.querySelector(".career-and-flight > a").href;
-                sample_dict["cabins_details"] = flight.querySelector('.cabinSelector')
-                let mona = flight.querySelector('.cabinSelector')
-                console.log(mona)
-                final_sub_dict["connections"] = sample_dict
-                return final_sub_dict
-            });
-        });
-
-        const result1 = await page.evaluate(() => {
-            const rows = document.querySelectorAll('.connecting-flights');
-                return Array.from(rows, row => {
-                let sample_dict = {}
-                const columns = row.querySelectorAll('.travel-time-detail');
-                Array.from(columns, column => {
-                    sample_dict["departureDate"] = column.querySelector(".departdate ").textContent;
-                    sample_dict["departureTime"] = column.querySelector(".departtime >strong").textContent;
-                    sample_dict["departureAirport"] = column.querySelector(".airportCodeLink").textContent;
-                    sample_dict["arrivalDate"] = column.querySelector(".arrivaldate ").textContent;
-                    sample_dict["arrivalTime"] = column.querySelector(".arrivaltime >strong").textContent;
-                    sample_dict["arrivalAirport"] = column.querySelector(".arrival >div >p >a").textContent;
-                    sample_dict["airline"] = column.querySelector(".career-and-flight > a > span:nth-child(1)").textContent;
-                    sample_dict["flightNumber"] = column.querySelector(".career-and-flight > a > span:nth-child(2)").textContent;
-                    sample_dict["model"] = column.querySelector(".career-and-flight > a").href;
-                });
-                let mona = row.querySelector('.cabinSelector')
-                console.log(mona)
-                sample_dict["cabins_details"] = row.querySelector('.cabinSelector')
-                return sample_dict
-            });
-        });
-        //console.log(result)
-        //for await(const element of result){
-        //    let href_data = await url_extraction(page,element.connections.model)
-        //    console.log(href_data)
-        //    element.connections.model_data = href_data
-        //}
-        //console.log(result1)
-        //const cabins = await page.evaluate(() => Array.from(document.querySelectorAll('.cabinSelector')))
-        const business = await page.$x("//div[contains(@class,'number-of-seats-available')]//div//*[text()='Business Class']");
-        let business_element= await text_extraction (page, business)
-        const economy = await page.$x("//div[contains(@class,'number-of-seats-available')]//div//*[text()='Economy']");
-        let economy_element = await text_extraction(page,economy)
-        console.log(economy_element)
-        for await(const element of result){
-           element["modelData"] = await url_extraction(page,element.connections.model)
-           console.log(data)
+        let business_element = []
+        bodyHTML = await page.evaluate(() => document.body.innerHTML);
+        if (request_data.cabins.includes("business")){
+            const business = await page.$x("//div[contains(@class,'number-of-seats-available')]//div//*[text()='Business Class']");
+            business_element= await text_extraction (page, business) 
         }
+        let premium_economy_element = []
+        if (request_data.cabins.includes("premium_economy")){
+            const premium_economy = await page.$x("//div[contains(@class,'number-of-seats-available')]//div//*[text()='Premium Economy']");
+            premium_economy_element = await text_extraction(page,premium_economy)
+        }
+        let economy_element = []
+        if (request_data.cabins.includes("economy")){
+            const economy = await page.$x("//div[contains(@class,'number-of-seats-available')]//div//*[text()='Economy']");
+            economy_element = await text_extraction(page,economy)
+        }
+        let first_class_element = []
+        if (request_data.cabins.includes("first_class")){
+            const first_class = await page.$x("//div[contains(@class,'number-of-seats-available')]//div//*[text()='LA Premiere']");
+            first_class_element = await text_extraction(page,economy)
+        }
+        const model_details = await page.$$eval('.career-and-flight > a', anchors => [].map.call(anchors, a => a.href));
+        const model_list = {}
+        for await(const element of model_details){
+               model_list[element] = await url_extraction(page,element)
+               // model_list.push(data)
+        }
+        result = {
+            "economy":economy_element,
+            "premium_economy":premium_economy_element,
+            "business":business_element,
+            "first_class":first_class_element,
+            "flight_model_data":model_list,
+            "sourcePage":bodyHTML
+            }
+        await browser.close()
     })
-
+    return result
 }
-britishAirline()
 
 
 async function text_extraction (page, elements) {
@@ -109,7 +80,6 @@ async function text_extraction (page, elements) {
       let element1 = await page.$(".totalPriceAviosTxt");
       let text1 = await (await element1.getProperty('textContent')).jsonValue();
       data[index] = text1
-      console.log(text1)
       index = index+1
    }
    return data
@@ -118,7 +88,17 @@ async function text_extraction (page, elements) {
 async function url_extraction (page, url) {
     await page.goto(url);
     await page.waitForSelector('#flightDetailsModalTable > div:nth-child(7) > p:nth-child(2) > span.text')
-    let element1 = await page.$("#flightDetailsModalTable > div:nth-child(7) > p:nth-child(2) > span.text");
-    let text1 = await (await element1.getProperty('textContent')).jsonValue();
-    return text1
+    const result = await page.evaluate(() => {
+        let flight_info = {}
+        flight_info["flight"] = document.querySelector('#flightDetailsModalTable > div:nth-child(1) > p:nth-child(2) > span.text').textContent;
+        flight_info["operatedBy"] = document.querySelector('#flightDetailsModalTable > div:nth-child(2) > p:nth-child(2) > span.text').textContent;
+        flight_info["departure"] = document.querySelector('#flightDetailsModalTable > div:nth-child(3) > p:nth-child(2) > span.text').textContent;
+        flight_info["arrival"] = document.querySelector('#flightDetailsModalTable > div:nth-child(4) > p:nth-child(2) > span.text').textContent;
+        flight_info["stops"] = document.querySelector('#flightDetailsModalTable > div:nth-child(5) > p:nth-child(2) > span.text').textContent;
+        flight_info["duration"] = document.querySelector('#flightDetailsModalTable > div:nth-child(6) > p:nth-child(2) > span.text').textContent;
+        flight_info["aircraft"] = document.querySelector('#flightDetailsModalTable > div:nth-child(7) > p:nth-child(2) > span.text').textContent;
+        return flight_info
+    });
+    result["url"] = url
+    return result
 }
