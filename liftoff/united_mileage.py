@@ -32,18 +32,31 @@ def UnitedMileagePlus(request_data):
     cabin_mapping = {"First Saver Award": "First Class", "Business Saver Award": "Business",
                      "Business Everyday Award": "Business", "Premium Economy (lowest award)": "Premium Economy",
                      "Economy (lowest award)": "Economy"}
+    mixed_cabin_mapping = {"First":"First Class", "Business":"Business", "Premium":"Premium Economy", "Economy":"Economy"}
+    cabins = ["First", "Business", "Premium", "Economy"]
+    request_cabin_detail = []
     request_cabins = request_data.get('cabins', [])
+    cabin_hierarchy = []
     for cabin in request_cabins:
         if cabin.lower() == "first_class":
             cabin_classes.append("First Saver Award")
+            request_cabin_detail.append("First Class")
+            cabin_hierarchy = cabin_hierarchy + ["First Class", "Business", "Premium Economy", "Economy"]
         elif cabin.lower() == "business":
             cabin_classes.append("Business Saver Award")
             cabin_classes.append("Business Everyday Award")
+            request_cabin_detail.append("Business")
+            cabin_hierarchy = cabin_hierarchy + ["Business", "Premium Economy", "Economy"]
         elif cabin.lower() == "premium_economy":
             cabin_classes.append("Premium Economy (lowest award)")
+            request_cabin_detail.append("Premium Economy")
+            cabin_hierarchy = cabin_hierarchy + ["Premium Economy", "Economy"]
         elif cabin.lower() == "economy":
             cabin_classes.append("Economy (lowest award)")
+            request_cabin_detail.append("Economy")
+            cabin_hierarchy = cabin_hierarchy + ["Economy"]
     cabin_classes = list(set(cabin_classes))
+    cabin_hierarchy = list(set(cabin_hierarchy))
 
     # login using selenium
     display = Display(visible=0, size=(1400, 1000))
@@ -134,7 +147,7 @@ def UnitedMileagePlus(request_data):
             sample_dict = {}
             dateTime = []
             flight_origin = flight.get('Origin','')
-            flight_destination = flight.get('LastDestination',{}).get('Code','')
+            flight_destination = flight.get('LastDestination', {}).get('Code', '')
             if (flight_origin not in departureAirport) or (flight_destination not in arrivalAirport):
                 continue
             sample_dict["num_stops"] = flight.get('StopsandConnections', 0)
@@ -208,14 +221,31 @@ def UnitedMileagePlus(request_data):
                     fareclass = fare.get('BookingCode', '')
                     cabin = fare.get('ProductTypeDescription', '')
                     if fareclass:
-                        cabin = fare.get('ProductTypeDescription', '')
                         final_sub_dict = copy.deepcopy(sample_dict)
-                        if cabin.strip() in cabin_classes:
+                        cabin_availablity = False
+                        cabin_details = fare.get("FlightDetails", [])
+                        if cabin_details:
+                            cabin_availablity = True
+                            for (cabin_data, con) in zip(cabin_details, final_sub_dict["connections"]):
+                                cabin = cabin_data.get('ClassDescription', '')
+                                for ele in cabins:
+                                    if ele.lower() in cabin.lower():
+                                        cabin_valid_name = ele
+                                        break
+                                con["cabin"] = mixed_cabin_mapping[cabin_valid_name]
+                                con["fare_class"] = cabin_data.get('CabinType', '')
+                        else:
+                            cabin = fare.get('ProductTypeDescription', '')
+                            for ele in cabins:
+                                if ele.lower() in cabin.lower():
+                                    cabin_availablity = True
+                                    cabin_valid_name = ele
+                                    break
                             for con in final_sub_dict["connections"]:
-                                con["cabin"] = cabin_mapping[cabin.strip()]
+                                con["cabin"] = mixed_cabin_mapping[cabin_valid_name]
                             for (con, fare_class_name) in zip(final_sub_dict["connections"], fareclass_mapping[cabin.strip()]):
                                 con["fare_class"] = fare_class_name
-
+                        if cabin_availablity:
                             final_sub_dict["distance"] = None
                             final_sub_dict["times"] = {"flight": str(sumOfFlightTimes//60).zfill(2) + ':' +str(sumOfFlightTimes%60).zfill(2), "layover": str(sumOfLayoverTimes//60).zfill(2) + ':' +str(sumOfLayoverTimes%60).zfill(2)}
                             if final_sub_dict["times"]["layover"] == "00:00":
@@ -232,11 +262,21 @@ def UnitedMileagePlus(request_data):
                             final_sub_dict["payments"] = [{"currency": currency, "taxes": taxandfees, "fees": None}]
                             final_sub_dict["site_key"] = request_data['site_key']
                             #sample_dict["site_key"] = 'UA'
-                            final_sub_dict["award_type"] = cabin
-                            final_dict.append(final_sub_dict)
+                            final_sub_dict["award_type"] = cabin.strip()
+                            cabinValid = False
+                            hierarchy_valid = True
+                            for ele_con in final_sub_dict["connections"]:
+                                result = any(ele.lower() in ele_con["cabin"].lower() for ele in request_cabin_detail)
+                                if result:
+                                    cabinValid = True
+                                cabin_hierarchy_valid = any(ele.lower() in ele_con["cabin"].lower() for ele in cabin_hierarchy)
+                                if not cabin_hierarchy_valid:
+                                    hierarchy_valid = False
+                            if cabinValid and hierarchy_valid:
+                                final_dict.append(final_sub_dict)
+
     if len(final_dict) == 0:
         errorMsg = "No flights found"
         return final_dict, errorMsg
     else:
         return final_dict, errorMsg
-
