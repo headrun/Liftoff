@@ -4,7 +4,7 @@ module.exports = { britishAirline }
 async function britishAirline(request_data){
     var result
     await puppeteer.use(StealthPlugin())
-    await puppeteer.launch({executablePath: '/usr/bin/google-chrome', headless: false }).then(async browser => {
+    await puppeteer.launch({executablePath: '/usr/bin/google-chrome', headless: true, args: ['--no-sandbox', '--disable-setuid-sandbox','--lang=en-GB']}).then(async browser => {
         const page = await browser.newPage()
         await page.goto('https://www.britishairways.com/travel/home/execclub/_gf/en_us/')
         const navigationPromise = page.waitForNavigation()
