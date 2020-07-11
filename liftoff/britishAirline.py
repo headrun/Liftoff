@@ -36,6 +36,7 @@ def britishAirline(request_data):
     sel = Selector(text=res["sourcePage"])
     single_connections = sel.xpath('//div[@class="direct-flight-details"]')
     result_cabin_keys = {"Economy":"economy", "Premium Economy":"premium_economy", "Business Class":"business", "First Class":"first_class"}
+    mapping_cabins = {"Economy":"Economy", "Premium Economy":"Premium Economy", "Business Class":"Business", "First Class":"First"}
     for flight in single_connections:
         sample_dict = {}
         flight_detail_url = ''.join(flight.xpath('div/div[@class="travel-time-detail"]/div[contains(@class,"operator")]/div/p[contains(@class,"career-and-flight")]/a/@href').extract()).strip()  
@@ -74,7 +75,7 @@ def britishAirline(request_data):
         for (cabin, award) in zip(cabins, award_types):
             final_sub_dict = copy.deepcopy(sub_dict)
             for con in final_sub_dict["connections"]:
-                con["cabin"] = cabin
+                con["cabin"] = mapping_cabins[cabin]
             res_key = result_cabin_keys.get(cabin, '')
             result_array = res.get(res_key, [])
             if result_array:
@@ -147,7 +148,7 @@ def britishAirline(request_data):
             for (cabin, award) in zip(cabins, award_types):
                 final_sub_dict = copy.deepcopy(sub_dict)
                 for con in final_sub_dict["connections"]:
-                    con["cabin"] = cabin
+                    con["cabin"] = mapping_cabins[cabin]
                 res_key = result_cabin_keys.get(cabin, '')
                 result_array = res.get(res_key, [])
                 if result_array:
