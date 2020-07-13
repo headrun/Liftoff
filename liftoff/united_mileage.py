@@ -132,7 +132,7 @@ def UnitedMileagePlus(request_data):
             "Index": 2,
             "Origin": departureAirport,
         })
-    response = requests.post('https://www.united.com/ual/en/us/flight-search/book-a-flight/flightshopping/getflightresults/awd', headers=headers, cookies=cookies, data=json.dumps(data)) #proxies=proxies)
+    response = requests.post('https://www.united.com/ual/en/us/flight-search/book-a-flight/flightshopping/getflightresults/awd', headers=headers, cookies=cookies, data=json.dumps(data), proxies=proxies)
     res = json.loads(response.text)
     errorstatus = res.get('status', '')
     errorMsg = ''
