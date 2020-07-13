@@ -5,7 +5,8 @@ from datetime import datetime
 import requests
 from selenium import webdriver
 from pyvirtualdisplay import Display
-from liftoff.settings import proxies
+from settings import proxies
+
 
 def DeltaSkyMiles(request_data):
     display = Display(visible=0, size=(1400, 1000))
@@ -46,7 +47,7 @@ def DeltaSkyMiles(request_data):
                     'Upper Class':'Business',
                     'First':'First Class',
                     'Delta One':'First Class',
-                    'Premier':'First Class'}
+                    'Premier':'Business'}
 
     departureDate = request_data.get('departure_date', {}).get('when', '')
     arrivalDate = request_data.get('arrival_date', {}).get('when', '')
@@ -55,32 +56,25 @@ def DeltaSkyMiles(request_data):
         tripStatus = 'ROUND_TRIP'
     else:
         arrivalDate = None
-
-    cabin_classes, cabin_hierarchy = [], []
+    cabin_hierarchy, request_cabin_detail = [], []
+    mixed_cabin_mapping = {"First":"First Class", "Delta One":"First Class", "Business":"Business", "Upper Class":"Business", "Premier":"Business", "Premium":"Premium Economy", "Comfort+":"Premium Economy", "Economy":"Economy", "Main Cabin":"Economy", "Main":"Economy", "Basic":"Economy", "Classic":"Economy"}
+    cabins = ["First", "Delta One", "Business", "Upper Class", "Premier", "Premium", "Comfort+", "Economy", "Main", "Main Cabin", "Classic", "Basic"]
     request_cabins = request_data.get('cabins', [])
     for cabin in request_cabins:
         if cabin.lower() == "first":
-            cabin_classes.append("First")
-            cabin_classes.append("Delta One")
-            cabin_classes.append("Premier")
-            cabin_hierarchy = cabin_hierarchy + ["First Class", "Premium Economy", "Business", "Economy", "Main Cabin", "Delta One", "Classic", "Basic", "First", "Upper Class", "Premier", "Comfort+"]
+            request_cabin_detail.append("First Class")
+            cabin_hierarchy = cabin_hierarchy + ["First Class", "Business", "Premium Economy", "Economy"]
         elif cabin.lower() == "business":
-            cabin_classes.append("Business")
-            cabin_classes.append("Upper Class")
-            cabin_hierarchy = cabin_hierarchy + ["Premium Economy", "Business", "Economy", "Main Cabin", "Comfort+", "Main", "Classic", "Basic", "Upper Class"]
+            request_cabin_detail.append("Business")
+            cabin_hierarchy = cabin_hierarchy + ["Business", "Premium Economy", "Economy"]
         elif cabin.lower() == "premium_economy":
-            cabin_classes.append("Premium")
-            cabin_classes.append("Comfort+")      
-            cabin_hierarchy = cabin_hierarchy + ["Premium Economy", "Economy", "Main Cabin", "Comfort+", "Main", "Classic", "Basic"]
+            request_cabin_detail.append("Premium Economy")
+            cabin_hierarchy = cabin_hierarchy + ["Premium Economy", "Economy"]
         elif cabin.lower() == "economy":
-            cabin_classes.append("Economy")
-            cabin_classes.append("Main Cabin")
-            cabin_classes.append("Main")
-            cabin_classes.append("Classic")
-            cabin_classes.append("Basic")
-            cabin_hierarchy = cabin_hierarchy + ["Economy", "Main Cabin", "Main", "Classic", "Basic"]
+            request_cabin_detail.append("Economy")
+            cabin_hierarchy = cabin_hierarchy + ["Economy"]
             
-    cabin_classes = list(set(cabin_classes))
+    #cabin_classes = list(set(cabin_classes))
     cabin_hierarchy = list(set(cabin_hierarchy))
 
     maxStop = request_data.get('max_stops')
@@ -114,8 +108,8 @@ def DeltaSkyMiles(request_data):
                 "actionType":"",
                 "initialSearchBy":{"fareFamily":"BE", "meetingEventCode":"", "refundable":False, "flexAirport":False, "flexDate":True, "flexDaysWeeks":"FLEX_DAYS"},
                 "sortableOptionId":"priceAward",
+                #"requestPageNum":"2"}
                 "requestPageNum":str(req_page)}
-
         if req_page > 1:
             data.update({"filter":filters, "searchType":"resummarizePaging", "selectedSolutions":[]})
             response = requests.post('https://www.delta.com/shop/ow/search', headers=headers, cookies=cookies, data=json.dumps(data), proxies=proxies)
@@ -131,12 +125,16 @@ def DeltaSkyMiles(request_data):
                 return final_dict, error_msg
             else:
                 break
+            
         data = json.loads(response.text)
+        itinerary = data.get('itinerary', [])
         error_msg = data.get('shoppingError', {}).get('error', {}).get('message', {}).get('message', '')
         if error_msg:
             error_msg = 'No flights found'
             print(error_msg)
             return final_dict, error_msg
+        elif not itinerary:
+            break
         filters = data.get('filter', {})
         if not filters:
             filters = data.get('searchCriteria', {}).get('request', {}).get('filter', '')
@@ -159,22 +157,22 @@ def DeltaSkyMiles(request_data):
                     time, tot_time, lay_hours, lay_time = [], [], [], []
                     for segment in segments:
                         legs = segment.get('flightLeg', [])
+                        airlineDetails = {}
                         for leg in legs:
                             total_time = 0
                             lay_hour, lay_minut = 0, 0
                             hours, minuts = 0, 0
-                            airlineDetails = {}
                             departureAirport = leg.get('originAirportCode', '')
                             arrivalAirport = leg.get('destAirportCode', '')
                             departureDateTime = leg.get('schedDepartLocalTs', '')
                             arrivalDateTime = leg.get('schedArrivalLocalTs', '')
                             aircraftModel = leg.get('aircraft', {}).get('fleetName', '')
                             flightNumber = leg.get('viewSeatUrl', {}).get('fltNumber', '')
-                            airlineDetails["airline"] = leg.get('operatingCarrier', {}).get('code', '')
                             airlineDetails["departure"] = {"when": departureDateTime, "airport": departureAirport}
                             airlineDetails["arrival"] = {"when": arrivalDateTime, "airport": arrivalAirport}
                             airlineDetails["distance"] = None
                             airlineDetails["flight"] = [flightNumber]
+                            airlineDetails["airline"] = ''.join(re.findall('\D+', flightNumber))
                             try:
                                 aircraftManufacturer = aircraftModel.split(' ')[0]
                             except:
@@ -275,24 +273,22 @@ def DeltaSkyMiles(request_data):
                     cabin_available = False
                     for element in final_sub_dict["connections"]:
                         nameOfCabin = element["cabin"]
-                        result_cabin = any(ele in nameOfCabin for ele in cabin_classes)
-                        result_cabin_name = ''.join([ele for ele in cabin_classes if(ele.lower() in nameOfCabin.lower())])
-                        if result_cabin_name == 'EconomyClassic' or result_cabin_name == 'ClassicEconomy':
-                            result_cabin_name = 'Economy'                            
-                        if result_cabin:
-                            element["cabin"] = cabinMapping[result_cabin_name]
-                            cabin_available = True
-                        elif nameOfCabin == 'Main':
-                            element["cabin"] = 'Economy'
-                 
+                        for ele in cabins:
+                            if ele.lower() in nameOfCabin.lower():
+                                cabin_available = True
+                                cabin_valid_name = ele
+                                break
+                        element["cabin"] = mixed_cabin_mapping[cabin_valid_name]
                     if cabin_available:
+                        cabinValid = False
                         hierarchy_valid = True
                         for element in final_sub_dict["connections"]:
-                            cabin_hierarchy_valid = any(ele.lower() in element["cabin"].lower() for ele in cabin_hierarchy)
+                            result = any(ele.lower() == element["cabin"].lower() for ele in request_cabin_detail)    
+                            if result:
+                                cabinValid = True
+                            cabin_hierarchy_valid = any(ele.lower() == element["cabin"].lower() for ele in cabin_hierarchy)
                             if not cabin_hierarchy_valid:
                                 hierarchy_valid = False
-                        if hierarchy_valid:
+                        if cabinValid and hierarchy_valid:
                             final_dict.append(final_sub_dict)
     return final_dict, error_msg
-
-
