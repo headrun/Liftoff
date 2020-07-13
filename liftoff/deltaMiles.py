@@ -5,7 +5,7 @@ from datetime import datetime
 import requests
 from selenium import webdriver
 from pyvirtualdisplay import Display
-from settings import proxies
+from liftoff.settings import proxies
 
 
 def DeltaSkyMiles(request_data):
@@ -35,19 +35,6 @@ def DeltaSkyMiles(request_data):
         'accept-encoding': 'gzip, deflate, br',
         'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
         }
-
-    cabinMapping = {'Economy':'Economy',
-                    'Main Cabin':'Economy',
-                    'Main':'Economy',
-                    'Basic':'Economy',
-                    'Classic':'Economy',
-                    'Premium':'Premium Economy',
-                    'Comfort+':'Premium Economy',
-                    'Business':'Business',
-                    'Upper Class':'Business',
-                    'First':'First Class',
-                    'Delta One':'First Class',
-                    'Premier':'Business'}
 
     departureDate = request_data.get('departure_date', {}).get('when', '')
     arrivalDate = request_data.get('arrival_date', {}).get('when', '')
@@ -133,8 +120,6 @@ def DeltaSkyMiles(request_data):
             error_msg = 'No flights found'
             print(error_msg)
             return final_dict, error_msg
-        elif not itinerary:
-            break
         filters = data.get('filter', {})
         if not filters:
             filters = data.get('searchCriteria', {}).get('request', {}).get('filter', '')
@@ -157,11 +142,11 @@ def DeltaSkyMiles(request_data):
                     time, tot_time, lay_hours, lay_time = [], [], [], []
                     for segment in segments:
                         legs = segment.get('flightLeg', [])
-                        airlineDetails = {}
                         for leg in legs:
                             total_time = 0
                             lay_hour, lay_minut = 0, 0
                             hours, minuts = 0, 0
+                            airlineDetails = {}
                             departureAirport = leg.get('originAirportCode', '')
                             arrivalAirport = leg.get('destAirportCode', '')
                             departureDateTime = leg.get('schedDepartLocalTs', '')
