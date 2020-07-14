@@ -30,7 +30,7 @@ def vigranAtlantic(request_data):
     cabin_hierarchy = []
     cabinMapping = {'Economy':'Economy', 'Premium':'Premium Economy', 'Main Cabin':'Economy', 'Business Class':'Business', 'First Class':'First Class', 'Upper Class':'Business', 'Delta One':'First Class'}
     for cabin in request_cabins:
-        if cabin.lower() == "first":
+        if cabin.lower() == "first_class":
             cabin_classes.append("First Class")
             cabin_classes.append("Delta One")
             cabin_classes.append("Business Class")
