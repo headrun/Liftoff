@@ -102,7 +102,6 @@ def UnitedMileagePlus(request_data):
         ('taxng', '1'),
         ('newHP', 'True'),
     )
-    import pdb;pdb.set_trace()
     response = requests.get('https://www.united.com/ual/en/US/flight-search/book-a-flight/results/awd', headers=headers, params=params, cookies=cookies)
     sel = Selector(response)
     request_payload_script = ''.join(sel.xpath('//script[contains(text(),"FlightSearch.currentResults.appliedSearch")]/text()').extract()).strip().replace('\r\n','').replace(';','')
