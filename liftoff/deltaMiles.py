@@ -48,7 +48,7 @@ def DeltaSkyMiles(request_data):
     cabins = ["First", "Delta One", "Business", "Upper Class", "Premier", "Premium", "Comfort+", "Economy", "Main", "Main Cabin", "Classic", "Basic"]
     request_cabins = request_data.get('cabins', [])
     for cabin in request_cabins:
-        if cabin.lower() == "first":
+        if cabin.lower() == "first_class":
             request_cabin_detail.append("First Class")
             cabin_hierarchy = cabin_hierarchy + ["First Class", "Business", "Premium Economy", "Economy"]
         elif cabin.lower() == "business":
