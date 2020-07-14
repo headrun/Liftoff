@@ -8,6 +8,8 @@ from pyvirtualdisplay import Display
 import requests
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from liftoff.settings import proxies
+from scrapy.selector import Selector
+
 
 def UnitedMileagePlus(request_data):
     final_dict = []
@@ -18,13 +20,17 @@ def UnitedMileagePlus(request_data):
     arrivalDate = request_data.get('arrival_date', {}).get('when', '')
     passengers = request_data.get('passengers', 0)
     max_request_stops = request_data.get('max_stops', 0)
-    departure_date = datetime.strptime(departureDate, "%Y-%m-%d").strftime('%B %d, %Y')
+    departure_date = datetime.strptime(departureDate, "%Y-%m-%d").strftime('%d %b, %Y')
+    departure_week = datetime.strptime(departureDate, "%Y-%m-%d").strftime('%a, %d %b, %Y')
     if arrivalDate:
-        arrival_date = datetime.strptime(arrivalDate, "%Y-%m-%d").strftime('%B %d, %Y')
+        arrival_date = datetime.strptime(arrivalDate, "%Y-%m-%d").strftime('%d %b, %Y')
+        arrival_week = datetime.strptime(arrivalDate, "%Y-%m-%d").strftime('%a, %d %b, %Y')
     tripStatus = 'oneWay'
     if arrivalDate:
         tripStatus = 'roundTrip'
     else:
+        arrival_date = departure_date
+        arrival_week = departure_week
         arrivalDate = departureDate
 
     # cabin mappings
@@ -65,12 +71,43 @@ def UnitedMileagePlus(request_data):
     driver.get('https://www.united.com/en/us')
     # getting cookies from selenium driver
     cookies = {}
+    cookies_string = ''
     cookies_data = driver.get_cookies()
     for ele in cookies_data:
         cookies[ele["name"]] = ele["value"]
+        cookies_string = cookies_string + ele["name"] + '=' + ele["value"] + ";"
     display.stop()
     driver.quit()
     # python request for getting flight details
+    headers = {
+        'authority': 'www.united.com',
+        'upgrade-insecure-requests': '1',
+        'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36',
+        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+        'sec-fetch-site': 'same-origin',
+        'sec-fetch-mode': 'navigate',
+        'sec-fetch-user': '?1',
+        'sec-fetch-dest': 'document',
+        'referer': 'https://www.united.com/en/us',
+        'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
+        'cookie': cookies_string,
+    }
+    params = (
+        ('f', departureAirport),
+        ('t', arrivalAirport),
+        ('d', departureDate),
+        ('tt', '1'),
+        ('at', '1'),
+        ('sc', '7'),
+        ('px', '1'),
+        ('taxng', '1'),
+        ('newHP', 'True'),
+    )
+    response = requests.get('https://www.united.com/ual/en/US/flight-search/book-a-flight/results/awd', headers=headers, params=params)
+    sel = Selector(response)
+    request_payload_script = ''.join(sel.xpath('//script[contains(text(),"FlightSearch.currentResults.appliedSearch")]/text()').extract()).strip().replace('\r\n','').replace(';','')
+    request_payload = re.findall('appliedSearch =(.*)UA.Booking.FlightSearch.currentResults.appliedSearch.SearchFilters',request_payload_script)[0].replace('\t','').strip()
+    data = json.loads(request_payload)
     headers = {
         'Connection': 'keep-alive',
         'Accept': 'application/json, text/javascript, */*; q=0.01',
@@ -83,56 +120,7 @@ def UnitedMileagePlus(request_data):
         'Sec-Fetch-Mode': 'cors',
         'Accept-Language': 'en-GB,en-US;q=0.9,en;q=0.8'
     }
-    data = {
-        "searchTypeMain": tripStatus,
-        "realSearchTypeMain": tripStatus,
-        "Origin": departureAirport,
-        "Destination": arrivalAirport,
-        "DepartDate": None,
-        "DepartDateBasicFormat": departureDate,
-        "ReturnDate": None,
-        "ReturnDateBasicFormat": arrivalDate,
-        "awardTravel": True,
-        "MaxTrips": None,
-        "numberOfTravelers": passengers,
-        "numOfAdults": passengers,
-        "numOfSeniors": 0,
-        "numOfChildren04": 0,
-        "numOfChildren03": 0,
-        "numOfChildren02": 0,
-        "numOfChildren01": 0,
-        "numOfInfants": 0,
-        "numOfLapInfants": 0,
-        "travelerCount": passengers,
-        "Trips": [
-            {
-                "DepartDate": departure_date,
-                "ReturnDate": None,
-                "PetIsTraveling": False,
-                "PreferredTime": "",
-                "PreferredTimeReturn": None,
-                "Destination": arrivalAirport,
-                "Index": 1,
-                "Origin": departureAirport,
-            }
-        ],
-        "CartId": "CC48FE28-73B0-4B7E-A64C-669B94C6BABF",
-        "cabinSelection": "ECONOMY",
-        "IsChangeFeeWaived": True,
-        "CurrencyDescription": "International POS Cuurency",
-    }
-    if "roundTrip" in tripStatus:
-        data["Trips"].append({
-            "DepartDate": arrival_date,
-            "ReturnDate": None,
-            "PetIsTraveling": False,
-            "PreferredTime": "",
-            "PreferredTimeReturn": None,
-            "Destination": arrivalAirport,
-            "Index": 2,
-            "Origin": departureAirport,
-        })
-    response = requests.post('https://www.united.com/ual/en/us/flight-search/book-a-flight/flightshopping/getflightresults/awd', headers=headers, cookies=cookies, data=json.dumps(data), proxies=proxies)
+    response = requests.post('https://www.united.com/ual/en/US/flight-search/book-a-flight/flightshopping/getflightresults/awd', headers=headers, cookies=cookies, data=json.dumps(data)) #proxies=proxies)
     res = json.loads(response.text)
     errorstatus = res.get('status', '')
     errorMsg = ''
@@ -269,7 +257,7 @@ def UnitedMileagePlus(request_data):
                                 result = any(ele.lower() in ele_con["cabin"].lower() for ele in request_cabin_detail)
                                 if result:
                                     cabinValid = True
-                                cabin_hierarchy_valid = any(ele.lower() in ele_con["cabin"].lower() for ele in cabin_hierarchy)
+                                cabin_hierarchy_valid = any(ele.lower() == ele_con["cabin"].lower() for ele in cabin_hierarchy)
                                 if not cabin_hierarchy_valid:
                                     hierarchy_valid = False
                             if cabinValid and hierarchy_valid:
