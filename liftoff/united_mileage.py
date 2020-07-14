@@ -90,7 +90,6 @@ def UnitedMileagePlus(request_data):
         'sec-fetch-dest': 'document',
         'referer': 'https://www.united.com/en/us',
         'accept-language': 'en-GB,en-US;q=0.9,en;q=0.8',
-        'cookie': cookies_string,
     }
     params = (
         ('f', departureAirport),
@@ -103,7 +102,8 @@ def UnitedMileagePlus(request_data):
         ('taxng', '1'),
         ('newHP', 'True'),
     )
-    response = requests.get('https://www.united.com/ual/en/US/flight-search/book-a-flight/results/awd', headers=headers, params=params)
+    import pdb;pdb.set_trace()
+    response = requests.get('https://www.united.com/ual/en/US/flight-search/book-a-flight/results/awd', headers=headers, params=params, cookies=cookies)
     sel = Selector(response)
     request_payload_script = ''.join(sel.xpath('//script[contains(text(),"FlightSearch.currentResults.appliedSearch")]/text()').extract()).strip().replace('\r\n','').replace(';','')
     request_payload = re.findall('appliedSearch =(.*)UA.Booking.FlightSearch.currentResults.appliedSearch.SearchFilters',request_payload_script)[0].replace('\t','').strip()
