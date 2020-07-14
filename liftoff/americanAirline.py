@@ -1,7 +1,6 @@
 import json
 from copy import deepcopy
-from datetime import datetime, timedelta
-import requests
+from requests import post
 
 def americanAirlines(request_data):
     max_stops = request_data.get('max_stops', 0)
@@ -75,7 +74,7 @@ def americanAirlines(request_data):
 
     final_dict = []
     url = 'https://www.americanairlines.in/booking/api/search/v2/itinerary'
-    response = requests.post(url, headers=headers, data=json.dumps(data))
+    response = post(url, headers=headers, data=json.dumps(data))
     json_data = json.loads(response.text)
 
     error_msg = json_data.get('message', '')
@@ -114,10 +113,10 @@ def americanAirlines(request_data):
                         aircraft_manufacturer = aircraft_details.split(' ')[0]
                         aircraft_model_type = aircraft_details.split(' ')[-1]
 
-                    fare_classes.setdefault(aircraft_model_type, {})
+                    fare_classes.setdefault(flight_no, {})
                     product_details = leg.get('productDetails', [])
                     for product in product_details:
-                        fare_classes.get(aircraft_model_type, {}).update(
+                        fare_classes.get(flight_no, {}).update(
                             {product.get('productType', ''): product.get('bookingCode', '')})
 
                     flight_time = leg.get('durationInMinutes', '00:00')
@@ -141,7 +140,6 @@ def americanAirlines(request_data):
                     "redemptions": None,
                     "payments": None,
                     "tickets": None,
-                    "fare_class": fare_classes.get(aircraft_model_type, {}).get(cabin, '')
                 })
                 connections.append(airline_details)
 
@@ -170,10 +168,12 @@ def americanAirlines(request_data):
                         taxes = price_details.get('perPassengerDisplayTotal').get('amount', '')
 
                         for connection in final_sub_dict["connections"]:
-                            model = connection.get('aircraft', {}).get('model', '')
+                            #model = connection.get('aircraft', {}).get('model', '')
+                            flight_no = ''.join(connection.get('flight', []))
 
                             connection.update({
-                                "cabin": map_cabin
+                                "cabin": map_cabin,
+                                "fare_class": fare_classes.get(flight_no, {}).get(cabin, '')
                             })
 
                         final_sub_dict.update({
